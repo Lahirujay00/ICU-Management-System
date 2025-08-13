@@ -6,7 +6,6 @@ import Overview from './dashboard/Overview'
 import PatientOverview from './dashboard/PatientOverview'
 import StaffOverview from './dashboard/StaffOverview'
 import EquipmentOverview from './dashboard/EquipmentOverview'
-import AlertsPanel from './dashboard/AlertsPanel'
 import BedManagement from './dashboard/BedManagement'
 import AnalyticsPanel from './dashboard/AnalyticsPanel'
 import AIRiskAnalysis from './dashboard/AIRiskAnalysis'
@@ -16,7 +15,6 @@ import Header from './navigation/Header'
 export default function Dashboard() {
   const { data: session } = useSession()
   const [activeTab, setActiveTab] = useState('overview')
-  const [alerts, setAlerts] = useState([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
@@ -26,7 +24,7 @@ export default function Dashboard() {
 
   const loadDashboardData = async () => {
     try {
-      // Load alerts, patient data, etc.
+      // Load dashboard data
       setIsLoading(false)
     } catch (error) {
       console.error('Error loading dashboard data:', error)
@@ -72,9 +70,6 @@ export default function Dashboard() {
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
         <Header user={session?.user} />
-        
-        {/* Alerts Panel - Always visible at top */}
-        <AlertsPanel alerts={alerts} />
         
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto p-6">
