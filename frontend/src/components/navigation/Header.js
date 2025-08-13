@@ -7,7 +7,8 @@ import {
   Settings, 
   HelpCircle,
   Sun,
-  Moon
+  Moon,
+  Bell
 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 
@@ -57,6 +58,12 @@ export default function Header({ user }) {
             ) : (
               <Moon className="w-5 h-5 text-gray-600" />
             )}
+          </button>
+
+          {/* Notifications */}
+          <button className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200">
+            <Bell className="w-5 h-5 text-gray-600" />
+            <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
           </button>
 
           {/* Help */}

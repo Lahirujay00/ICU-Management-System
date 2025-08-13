@@ -188,21 +188,19 @@ class ApiClient {
       {
         _id: '1',
         name: 'John Smith',
+        patientId: 'P001',
         age: 65,
         gender: 'male',
         diagnosis: 'Acute respiratory distress syndrome',
-        roomNumber: '101',
+        bedNumber: '101',
         status: 'critical',
         admissionDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-        vitalSigns: [
-          {
-            temperature: 38.5,
-            heartRate: 120,
-            bloodPressure: { systolic: 160, diastolic: 95 },
-            oxygenSaturation: 88,
-            respiratoryRate: 28
-          }
-        ],
+        attendingPhysician: 'Dr. Michael Chen',
+        vitalSigns: {
+          heartRate: 120,
+          bloodPressure: 160,
+          oxygenSaturation: 88
+        },
         allergies: ['Penicillin'],
         medicalHistory: ['Hypertension', 'Diabetes'],
         medications: ['Insulin', 'Metformin']
@@ -210,24 +208,42 @@ class ApiClient {
       {
         _id: '2',
         name: 'Sarah Johnson',
+        patientId: 'P002',
         age: 42,
         gender: 'female',
         diagnosis: 'Post-operative monitoring',
-        roomNumber: '102',
+        bedNumber: '102',
         status: 'stable',
         admissionDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-        vitalSigns: [
-          {
-            temperature: 37.2,
-            heartRate: 78,
-            bloodPressure: { systolic: 120, diastolic: 80 },
-            oxygenSaturation: 98,
-            respiratoryRate: 16
-          }
-        ],
+        attendingPhysician: 'Dr. Sarah Williams',
+        vitalSigns: {
+          heartRate: 78,
+          bloodPressure: 120,
+          oxygenSaturation: 98
+        },
         allergies: [],
         medicalHistory: ['Appendectomy'],
         medications: ['Acetaminophen']
+      },
+      {
+        _id: '3',
+        name: 'Mike Wilson',
+        patientId: 'P003',
+        age: 58,
+        gender: 'male',
+        diagnosis: 'Cardiac monitoring post-MI',
+        bedNumber: '103',
+        status: 'improving',
+        admissionDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+        attendingPhysician: 'Dr. Emily Rodriguez',
+        vitalSigns: {
+          heartRate: 72,
+          bloodPressure: 130,
+          oxygenSaturation: 96
+        },
+        allergies: ['Sulfa drugs'],
+        medicalHistory: ['Myocardial Infarction', 'Hypertension'],
+        medications: ['Aspirin', 'Metoprolol']
       }
     ]
   }

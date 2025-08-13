@@ -9,7 +9,8 @@ import {
   TrendingUp, 
   Clock,
   Bed,
-  Stethoscope
+  Stethoscope,
+  Plus
 } from 'lucide-react'
 import PatientCard from '../patients/PatientCard'
 import VitalSignsChart from '../charts/VitalSignsChart'
@@ -101,16 +102,16 @@ export default function PatientOverview({ detailed = false }) {
         </div>
         <button
           onClick={() => setIsAdmissionModalOpen(true)}
-          className="btn-primary flex items-center gap-2"
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
         >
-          <User className="w-4 h-4" />
+          <Plus className="w-4 h-4" />
           Admit Patient
         </button>
       </div>
 
       {/* Status Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="card bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200">
+        <div className="bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-blue-600">Total Patients</p>
@@ -120,7 +121,7 @@ export default function PatientOverview({ detailed = false }) {
           </div>
         </div>
 
-        <div className="card bg-gradient-to-r from-red-50 to-red-100 border-red-200">
+        <div className="bg-gradient-to-r from-red-50 to-red-100 border border-red-200 rounded-xl p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-red-600">Critical</p>
@@ -130,7 +131,7 @@ export default function PatientOverview({ detailed = false }) {
           </div>
         </div>
 
-        <div className="card bg-gradient-to-r from-green-50 to-green-100 border-green-200">
+        <div className="bg-gradient-to-r from-green-50 to-green-100 border border-green-200 rounded-xl p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-green-600">Stable</p>
@@ -140,7 +141,7 @@ export default function PatientOverview({ detailed = false }) {
           </div>
         </div>
 
-        <div className="card bg-gradient-to-r from-yellow-50 to-yellow-100 border-yellow-200">
+        <div className="bg-gradient-to-r from-yellow-50 to-yellow-100 border border-yellow-200 rounded-xl p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-yellow-600">Improving</p>
@@ -201,7 +202,7 @@ export default function PatientOverview({ detailed = false }) {
           <PatientCard
             key={patient._id}
             patient={patient}
-            onClick={() => setSelectedPatient(patient)}
+            onSelect={() => setSelectedPatient(patient)}
             onStatusUpdate={handleStatusUpdate}
           />
         ))}
@@ -211,7 +212,6 @@ export default function PatientOverview({ detailed = false }) {
       {selectedPatient && (
         <RiskAssessmentPanel 
           patient={selectedPatient}
-          onClose={() => setSelectedPatient(null)}
         />
       )}
 
@@ -219,7 +219,7 @@ export default function PatientOverview({ detailed = false }) {
       <PatientAdmissionModal
         isOpen={isAdmissionModalOpen}
         onClose={() => setIsAdmissionModalOpen(false)}
-        onSubmit={handleAdmitPatient}
+        onAdmit={handleAdmitPatient}
       />
     </div>
   )
