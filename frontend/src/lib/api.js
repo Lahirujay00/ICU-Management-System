@@ -132,6 +132,43 @@ class ApiClient {
     })
   }
 
+  // Bed endpoints
+  async getBeds() {
+    return this.request('/beds')
+  }
+
+  async getBed(id) {
+    return this.request(`/beds/${id}`)
+  }
+
+  async createBed(bedData) {
+    return this.request('/beds', {
+      method: 'POST',
+      body: JSON.stringify(bedData),
+    })
+  }
+
+  async updateBed(id, bedData) {
+    return this.request(`/beds/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(bedData),
+    })
+  }
+
+  async assignPatientToBed(bedId, patientId) {
+    return this.request(`/beds/${bedId}/assign`, {
+      method: 'POST',
+      body: JSON.stringify({ patientId }),
+    })
+  }
+
+  async updateBedStatus(bedId, status) {
+    return this.request(`/beds/${bedId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    })
+  }
+
   // Dashboard endpoints
   async getDashboardOverview() {
     return this.request('/dashboard/overview')
@@ -143,6 +180,154 @@ class ApiClient {
 
   async getDashboardAlerts() {
     return this.request('/dashboard/alerts')
+  }
+
+  // Mock data for development
+  getMockPatients() {
+    return [
+      {
+        _id: '1',
+        name: 'John Smith',
+        age: 65,
+        gender: 'male',
+        diagnosis: 'Acute respiratory distress syndrome',
+        roomNumber: '101',
+        status: 'critical',
+        admissionDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+        vitalSigns: [
+          {
+            temperature: 38.5,
+            heartRate: 120,
+            bloodPressure: { systolic: 160, diastolic: 95 },
+            oxygenSaturation: 88,
+            respiratoryRate: 28
+          }
+        ],
+        allergies: ['Penicillin'],
+        medicalHistory: ['Hypertension', 'Diabetes'],
+        medications: ['Insulin', 'Metformin']
+      },
+      {
+        _id: '2',
+        name: 'Sarah Johnson',
+        age: 42,
+        gender: 'female',
+        diagnosis: 'Post-operative monitoring',
+        roomNumber: '102',
+        status: 'stable',
+        admissionDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+        vitalSigns: [
+          {
+            temperature: 37.2,
+            heartRate: 78,
+            bloodPressure: { systolic: 120, diastolic: 80 },
+            oxygenSaturation: 98,
+            respiratoryRate: 16
+          }
+        ],
+        allergies: [],
+        medicalHistory: ['Appendectomy'],
+        medications: ['Acetaminophen']
+      }
+    ]
+  }
+
+  getMockStaff() {
+    return [
+      {
+        _id: '1',
+        name: 'Dr. Michael Chen',
+        role: 'doctor',
+        department: 'ICU',
+        isOnDuty: true,
+        shift: 'Day',
+        specialization: 'Critical Care Medicine'
+      },
+      {
+        _id: '2',
+        name: 'Nurse Emily Rodriguez',
+        role: 'nurse',
+        department: 'ICU',
+        isOnDuty: true,
+        shift: 'Day'
+      },
+      {
+        _id: '3',
+        name: 'Dr. Sarah Williams',
+        role: 'doctor',
+        department: 'ICU',
+        isOnDuty: false,
+        shift: 'Night',
+        specialization: 'Emergency Medicine'
+      }
+    ]
+  }
+
+  getMockEquipment() {
+    return [
+      {
+        _id: '1',
+        name: 'Ventilator',
+        category: 'Respiratory',
+        status: 'in_use',
+        quantity: 8,
+        maxQuantity: 10,
+        minQuantity: 2,
+        location: 'ICU Ward A',
+        lastMaintenance: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+        nextMaintenance: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString()
+      },
+      {
+        _id: '2',
+        name: 'Patient Monitor',
+        category: 'Monitoring',
+        status: 'available',
+        quantity: 15,
+        maxQuantity: 20,
+        minQuantity: 5,
+        location: 'ICU Ward B',
+        batteryLevel: 85
+      }
+    ]
+  }
+
+  getMockBeds() {
+    return [
+      {
+        _id: '1',
+        number: '101',
+        status: 'occupied',
+        roomNumber: '101',
+        floor: '1',
+        patient: {
+          name: 'John Smith',
+          admissionDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+          status: 'critical'
+        },
+        updatedAt: new Date().toISOString()
+      },
+      {
+        _id: '2',
+        number: '102',
+        status: 'occupied',
+        roomNumber: '102',
+        floor: '1',
+        patient: {
+          name: 'Sarah Johnson',
+          admissionDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+          status: 'stable'
+        },
+        updatedAt: new Date().toISOString()
+      },
+      {
+        _id: '3',
+        number: '103',
+        status: 'available',
+        roomNumber: '103',
+        floor: '1',
+        updatedAt: new Date().toISOString()
+      }
+    ]
   }
 }
 
