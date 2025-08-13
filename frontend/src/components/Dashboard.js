@@ -2,12 +2,14 @@
 
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
+import Overview from './dashboard/Overview'
 import PatientOverview from './dashboard/PatientOverview'
 import StaffOverview from './dashboard/StaffOverview'
 import EquipmentOverview from './dashboard/EquipmentOverview'
 import AlertsPanel from './dashboard/AlertsPanel'
 import BedManagement from './dashboard/BedManagement'
 import AnalyticsPanel from './dashboard/AnalyticsPanel'
+import AIRiskAnalysis from './dashboard/AIRiskAnalysis'
 import Sidebar from './navigation/Sidebar'
 import Header from './navigation/Header'
 
@@ -35,15 +37,11 @@ export default function Dashboard() {
   const renderMainContent = () => {
     switch (activeTab) {
       case 'overview':
-        return (
-          <div className="space-y-6">
-            <PatientOverview />
-            <StaffOverview />
-            <EquipmentOverview />
-          </div>
-        )
+        return <Overview />
       case 'patients':
         return <PatientOverview detailed={true} />
+      case 'ai-risk':
+        return <AIRiskAnalysis />
       case 'staff':
         return <StaffOverview detailed={true} />
       case 'equipment':
@@ -53,7 +51,7 @@ export default function Dashboard() {
       case 'analytics':
         return <AnalyticsPanel />
       default:
-        return <PatientOverview />
+        return <Overview />
     }
   }
 
