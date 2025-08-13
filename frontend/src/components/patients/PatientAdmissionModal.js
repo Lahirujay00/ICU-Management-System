@@ -1,84 +1,51 @@
 'use client'
 
 import { useState } from 'react'
-import { 
-  User, 
-  X, 
-  Plus,
-  Calendar,
-  Stethoscope,
-  AlertTriangle
-} from 'lucide-react'
+import { X, User, Bed, Stethoscope, AlertTriangle } from 'lucide-react'
 
-export default function PatientAdmissionModal({ isOpen, onClose, onSubmit }) {
+export default function PatientAdmissionModal({ isOpen, onClose, onAdmit }) {
   const [formData, setFormData] = useState({
     name: '',
     age: '',
     gender: '',
+    patientId: '',
+    bedNumber: '',
     diagnosis: '',
-    roomNumber: '',
-    emergencyContact: {
-      name: '',
-      relationship: '',
-      phone: ''
-    },
+    attendingPhysician: '',
+    emergencyContact: '',
     allergies: '',
-    medicalHistory: '',
-    medications: ''
+    medicalHistory: ''
   })
-  const [errors, setErrors] = useState({})
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleChange = (e) => {
     const { name, value } = e.target
-    if (name.includes('.')) {
-      const [parent, child] = name.split('.')
-      setFormData(prev => ({
-        ...prev,
-        [parent]: {
-          ...prev[parent],
-          [child]: value
-        }
-      }))
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        [name]: value
-      }))
-    }
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }))
   }
 
-  const validateForm = () => {
-    const newErrors = {}
-    
-    if (!formData.name.trim()) newErrors.name = 'Name is required'
-    if (!formData.age) newErrors.age = 'Age is required'
-    if (!formData.gender) newErrors.gender = 'Gender is required'
-    if (!formData.diagnosis.trim()) newErrors.diagnosis = 'Diagnosis is required'
-    if (!formData.roomNumber) newErrors.roomNumber = 'Room number is required'
-    
-    if (!formData.emergencyContact.name.trim()) newErrors.emergencyContactName = 'Emergency contact name is required'
-    if (!formData.emergencyContact.phone.trim()) newErrors.emergencyContactPhone = 'Emergency contact phone is required'
-    
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    
-    if (validateForm()) {
+    setIsSubmitting(true)
+
+    try {
       const patientData = {
         ...formData,
         age: parseInt(formData.age),
+        status: 'critical', // Default status for new admissions
         admissionDate: new Date().toISOString(),
-        status: 'stable',
         vitalSigns: [],
-        notes: [],
-        isActive: true
+        notes: []
       }
-      
-      onSubmit(patientData)
+
+      await onAdmit(patientData)
       handleClose()
+    } catch (error) {
+      console.error('Error admitting patient:', error)
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -87,18 +54,14 @@ export default function PatientAdmissionModal({ isOpen, onClose, onSubmit }) {
       name: '',
       age: '',
       gender: '',
+      patientId: '',
+      bedNumber: '',
       diagnosis: '',
-      roomNumber: '',
-      emergencyContact: {
-        name: '',
-        relationship: '',
-        phone: ''
-      },
+      attendingPhysician: '',
+      emergencyContact: '',
       allergies: '',
-      medicalHistory: '',
-      medications: ''
+      medicalHistory: ''
     })
-    setErrors({})
     onClose()
   }
 
@@ -109,240 +72,218 @@ export default function PatientAdmissionModal({ isOpen, onClose, onSubmit }) {
       <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex justify-between items-center p-6 border-b border-gray-200">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center space-x-3">
             <div className="p-2 bg-blue-100 rounded-lg">
-              <User className="w-6 h-6 text-blue-600" />
+              <User className="h-6 w-6 text-blue-600" />
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-900">Admit New Patient</h2>
-              <p className="text-gray-600">Enter patient information for admission</p>
+              <p className="text-gray-600">Enter patient information for ICU admission</p>
             </div>
           </div>
           <button
             onClick={handleClose}
-            className="text-gray-400 hover:text-gray-600"
+            className="text-gray-400 hover:text-gray-600 transition-colors"
           >
-            <X className="w-6 h-6" />
+            <X className="h-6 w-6" />
           </button>
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* Basic Information */}
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Full Name *
-                </label>
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.name ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                  placeholder="Enter patient's full name"
-                />
-                {errors.name && <p className="text-red-600 text-xs mt-1">{errors.name}</p>}
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+                Full Name *
+              </label>
+              <input
+                type="text"
+                id="name"
+                name="name"
+                required
+                value={formData.name}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Enter patient's full name"
+              />
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Age *
-                </label>
-                <input
-                  type="number"
-                  name="age"
-                  value={formData.age}
-                  onChange={handleChange}
-                  min="0"
-                  max="150"
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.age ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                  placeholder="Enter age"
-                />
-                {errors.age && <p className="text-red-600 text-xs mt-1">{errors.age}</p>}
-              </div>
+            <div>
+              <label htmlFor="age" className="block text-sm font-medium text-gray-700 mb-2">
+                Age *
+              </label>
+              <input
+                type="number"
+                id="age"
+                name="age"
+                required
+                min="0"
+                max="150"
+                value={formData.age}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Age in years"
+              />
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Gender *
-                </label>
-                <select
-                  name="gender"
-                  value={formData.gender}
-                  onChange={handleChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.gender ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                >
-                  <option value="">Select gender</option>
-                  <option value="male">Male</option>
-                  <option value="female">Female</option>
-                  <option value="other">Other</option>
-                </select>
-                {errors.gender && <p className="text-red-600 text-xs mt-1">{errors.gender}</p>}
-              </div>
+            <div>
+              <label htmlFor="gender" className="block text-sm font-medium text-gray-700 mb-2">
+                Gender *
+              </label>
+              <select
+                id="gender"
+                name="gender"
+                required
+                value={formData.gender}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Select gender</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Room Number *
-                </label>
-                <input
-                  type="text"
-                  name="roomNumber"
-                  value={formData.roomNumber}
-                  onChange={handleChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.roomNumber ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                  placeholder="e.g., 101, 2A"
-                />
-                {errors.roomNumber && <p className="text-red-600 text-xs mt-1">{errors.roomNumber}</p>}
-              </div>
+            <div>
+              <label htmlFor="patientId" className="block text-sm font-medium text-gray-700 mb-2">
+                Patient ID *
+              </label>
+              <input
+                type="text"
+                id="patientId"
+                name="patientId"
+                required
+                value={formData.patientId}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Unique patient identifier"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="bedNumber" className="block text-sm font-medium text-gray-700 mb-2">
+                Bed Number *
+              </label>
+              <input
+                type="text"
+                id="bedNumber"
+                name="bedNumber"
+                required
+                value={formData.bedNumber}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="ICU bed assignment"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="attendingPhysician" className="block text-sm font-medium text-gray-700 mb-2">
+                Attending Physician *
+              </label>
+              <input
+                type="text"
+                id="attendingPhysician"
+                name="attendingPhysician"
+                required
+                value={formData.attendingPhysician}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Primary physician name"
+              />
             </div>
           </div>
 
           {/* Medical Information */}
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Medical Information</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Primary Diagnosis *
-                </label>
-                <textarea
-                  name="diagnosis"
-                  value={formData.diagnosis}
-                  onChange={handleChange}
-                  rows="3"
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.diagnosis ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                  placeholder="Enter primary diagnosis and reason for admission"
-                />
-                {errors.diagnosis && <p className="text-red-600 text-xs mt-1">{errors.diagnosis}</p>}
-              </div>
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="diagnosis" className="block text-sm font-medium text-gray-700 mb-2">
+                Primary Diagnosis *
+              </label>
+              <textarea
+                id="diagnosis"
+                name="diagnosis"
+                required
+                rows="3"
+                value={formData.diagnosis}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Primary reason for ICU admission"
+              />
+            </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Allergies
-                  </label>
-                  <input
-                    type="text"
-                    name="allergies"
-                    value={formData.allergies}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="e.g., Penicillin, Latex"
-                  />
-                </div>
+            <div>
+              <label htmlFor="allergies" className="block text-sm font-medium text-gray-700 mb-2">
+                Allergies
+              </label>
+              <textarea
+                id="allergies"
+                name="allergies"
+                rows="2"
+                value={formData.allergies}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Known allergies (if any)"
+              />
+            </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Current Medications
-                  </label>
-                  <input
-                    type="text"
-                    name="medications"
-                    value={formData.medications}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="e.g., Aspirin 81mg daily"
-                  />
-                </div>
-              </div>
+            <div>
+              <label htmlFor="medicalHistory" className="block text-sm font-medium text-gray-700 mb-2">
+                Relevant Medical History
+              </label>
+              <textarea
+                id="medicalHistory"
+                name="medicalHistory"
+                rows="3"
+                value={formData.medicalHistory}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Previous medical conditions, surgeries, etc."
+              />
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Medical History
-                </label>
-                <textarea
-                  name="medicalHistory"
-                  value={formData.medicalHistory}
-                  onChange={handleChange}
-                  rows="3"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Enter relevant medical history, surgeries, chronic conditions"
-                />
-              </div>
+            <div>
+              <label htmlFor="emergencyContact" className="block text-sm font-medium text-gray-700 mb-2">
+                Emergency Contact
+              </label>
+              <input
+                type="text"
+                id="emergencyContact"
+                name="emergencyContact"
+                value={formData.emergencyContact}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Emergency contact person and number"
+              />
             </div>
           </div>
 
-          {/* Emergency Contact */}
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Emergency Contact</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Contact Name *
-                </label>
-                <input
-                  type="text"
-                  name="emergencyContact.name"
-                  value={formData.emergencyContact.name}
-                  onChange={handleChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.emergencyContactName ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                  placeholder="Enter contact name"
-                />
-                {errors.emergencyContactName && <p className="text-red-600 text-xs mt-1">{errors.emergencyContactName}</p>}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Relationship
-                </label>
-                <input
-                  type="text"
-                  name="emergencyContact.relationship"
-                  value={formData.emergencyContact.relationship}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="e.g., Spouse, Child"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Phone Number *
-                </label>
-                <input
-                  type="tel"
-                  name="emergencyContact.phone"
-                  value={formData.emergencyContact.phone}
-                  onChange={handleChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.emergencyContactPhone ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                  placeholder="Enter phone number"
-                />
-                {errors.emergencyContactPhone && <p className="text-red-600 text-xs mt-1">{errors.emergencyContactPhone}</p>}
-              </div>
-            </div>
-          </div>
-
-          {/* Form Actions */}
-          <div className="flex justify-end gap-3 pt-6 border-t border-gray-200">
+          {/* Actions */}
+          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
             <button
               type="button"
               onClick={handleClose}
-              className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors duration-200"
+              className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="btn-primary flex items-center gap-2"
+              disabled={isSubmitting}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
             >
-              <Plus className="w-4 h-4" />
-              Admit Patient
+              {isSubmitting ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  <span>Admitting...</span>
+                </>
+              ) : (
+                <>
+                  <Stethoscope className="h-4 w-4" />
+                  <span>Admit Patient</span>
+                </>
+              )}
             </button>
           </div>
         </form>
