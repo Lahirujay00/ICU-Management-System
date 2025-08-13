@@ -1,0 +1,25 @@
+{
+  "name": "icu-management-system",
+  "version": "0.1.0",
+  "description": "Comprehensive ICU management system with backend and frontend",
+  "private": true,
+  "scripts": {
+    "dev": "node start-dev.js",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "build": "cd backend && npm run build && cd ../frontend && npm run build",
+    "start": "cd backend && npm start & cd frontend && npm start",
+    "test": "cd backend && npm test && cd ../frontend && npm test",
+    "lint": "cd backend && npm run lint && cd ../frontend && npm run lint",
+    "lint:fix": "cd backend && npm run lint:fix && cd ../frontend && npm run lint:fix"
+  },
+  "keywords": ["icu", "management", "hospital", "healthcare", "api", "nextjs"],
+  "author": "ICU Management Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  }
+}
+
