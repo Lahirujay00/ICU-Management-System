@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
+import { useForm } from 'react-hook-form'
 import { 
   Search, 
   Plus, 
@@ -14,9 +15,11 @@ import {
   Droplets,
   Activity,
   TrendingUp,
-  Brain
+  Brain,
+  X
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import api from '@/lib/api' // Import the API utility
 
 export default function PatientsPage() {
   const [patients, setPatients] = useState([])
@@ -28,88 +31,31 @@ export default function PatientsPage() {
   const [showRiskModal, setShowRiskModal] = useState(false)
   const [riskAnalysis, setRiskAnalysis] = useState(null)
   const [analyzing, setAnalyzing] = useState(false)
+  const [showAddPatientModal, setShowAddPatientModal] = useState(false)
+
+  const { register, handleSubmit, reset, formState: { errors } } = useForm()
+
+  const fetchPatients = async () => {
+    try {
+      setLoading(true)
+      const response = await api.get('/patients')
+      setPatients(response.data)
+      setFilteredPatients(response.data) // Initialize filtered patients with all patients
+    } catch (error) {
+      toast.error('Failed to fetch patients.')
+      console.error('Error fetching patients:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    // Simulate loading patient data
-    setTimeout(() => {
-      const mockPatients = [
-        {
-          id: 1,
-          patientId: 'P001',
-          firstName: 'John',
-          lastName: 'Smith',
-          age: 65,
-          gender: 'male',
-          diagnosis: 'Acute Respiratory Distress Syndrome',
-          status: 'critical',
-          bedNumber: '12',
-          riskScore: 8,
-          riskLevel: 'high',
-          vitalSigns: {
-            heartRate: 120,
-            bloodPressure: { systolic: 180, diastolic: 110 },
-            temperature: 38.5,
-            oxygenSaturation: 88,
-            respiratoryRate: 28
-          },
-          admissionDate: '2024-01-15',
-          lengthOfStay: 5
-        },
-        {
-          id: 2,
-          patientId: 'P002',
-          firstName: 'Sarah',
-          lastName: 'Johnson',
-          age: 42,
-          gender: 'female',
-          diagnosis: 'Septic Shock',
-          status: 'observation',
-          bedNumber: '8',
-          riskScore: 6,
-          riskLevel: 'medium',
-          vitalSigns: {
-            heartRate: 95,
-            bloodPressure: { systolic: 140, diastolic: 90 },
-            temperature: 37.2,
-            oxygenSaturation: 95,
-            respiratoryRate: 18
-          },
-          admissionDate: '2024-01-18',
-          lengthOfStay: 2
-        },
-        {
-          id: 3,
-          patientId: 'P003',
-          firstName: 'Michael',
-          lastName: 'Brown',
-          age: 58,
-          gender: 'male',
-          diagnosis: 'Cardiac Arrest - Post Resuscitation',
-          status: 'stable',
-          bedNumber: '15',
-          riskScore: 4,
-          riskLevel: 'low',
-          vitalSigns: {
-            heartRate: 72,
-            bloodPressure: { systolic: 120, diastolic: 80 },
-            temperature: 36.8,
-            oxygenSaturation: 98,
-            respiratoryRate: 16
-          },
-          admissionDate: '2024-01-10',
-          lengthOfStay: 10
-        }
-      ]
-      
-      setPatients(mockPatients)
-      setFilteredPatients(mockPatients)
-      setLoading(false)
-    }, 1000)
+    fetchPatients()
   }, [])
 
   useEffect(() => {
     filterPatients()
-  }, [searchTerm, statusFilter, patients])
+  }, [searchTerm, statusFilter, patients]) // Re-run filter when patients state changes
 
   const filterPatients = () => {
     let filtered = patients
@@ -149,39 +95,16 @@ export default function PatientsPage() {
     }
   }
 
-  const analyzePatientRisk = async (patient) => {
-    setSelectedPatient(patient)
-    setAnalyzing(true)
-    setShowRiskModal(true)
-
+  const handleAddPatient = async (data) => {
     try {
-      // Simulate AI analysis
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      
-      const mockAnalysis = {
-        riskScore: patient.riskScore,
-        riskLevel: patient.riskLevel,
-        riskFactors: [
-          'Elevated heart rate above normal range',
-          'Blood pressure readings indicate hypertension',
-          'Oxygen saturation below optimal levels',
-          'Increased respiratory rate'
-        ],
-        recommendations: [
-          'Increase monitoring frequency to every 30 minutes',
-          'Consider oxygen therapy adjustment',
-          'Monitor for signs of respiratory distress',
-          'Review medication dosages'
-        ],
-        monitoringFrequency: 'Every 30 minutes',
-        confidence: 0.87
-      }
-      
-      setRiskAnalysis(mockAnalysis)
+      await api.post('/patients', data)
+      toast.success('Patient added successfully!')
+      setShowAddPatientModal(false)
+      reset() // Clear form fields
+      fetchPatients() // Refresh patient list
     } catch (error) {
-      toast.error('Failed to analyze patient risk')
-    } finally {
-      setAnalyzing(false)
+      toast.error('Failed to add patient.')
+      console.error('Error adding patient:', error)
     }
   }
 
@@ -198,12 +121,14 @@ export default function PatientsPage() {
               {patient.firstName} {patient.lastName}
             </h3>
             <span className="text-sm text-gray-500">#{patient.patientId}</span>
-            <span className={getStatusColor(patient.status)}>
+            {/* Patient status is not directly available in the fetched patient object */}
+            {/* <span className={getStatusColor(patient.status)}>
               {patient.status.charAt(0).toUpperCase() + patient.status.slice(1)}
-            </span>
+            </span> */}
           </div>
           
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+          {/* Vital signs are not directly available in the fetched patient object */}
+          {/* <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
             <div className="text-center">
               <div className="flex items-center justify-center mb-1">
                 <Heart className="w-4 h-4 text-red-500 mr-1" />
@@ -235,32 +160,33 @@ export default function PatientsPage() {
               </div>
               <span className="text-xs text-gray-500">SpO2</span>
             </div>
-          </div>
+          </div> */}
           
           <div className="flex items-center justify-between text-sm text-gray-600">
             <span>Bed {patient.bedNumber} • {patient.diagnosis}</span>
-            <span>LOS: {patient.lengthOfStay} days</span>
+            {/* <span>LOS: {patient.lengthOfStay} days</span> */}
           </div>
         </div>
         
         <div className="ml-4 flex flex-col items-end space-y-2">
-          <div className="text-right">
+          {/* Risk score and level are not directly available in the fetched patient object */}
+          {/* <div className="text-right">
             <div className={`text-2xl font-bold ${getRiskColor(patient.riskLevel)}`}>
               {patient.riskScore}
             </div>
             <div className={`text-xs font-medium ${getRiskColor(patient.riskLevel)}`}>
               {patient.riskLevel.toUpperCase()} RISK
             </div>
-          </div>
+          </div> */}
           
           <div className="flex space-x-2">
-            <button
+            {/* <button
               onClick={() => analyzePatientRisk(patient)}
               className="p-2 bg-primary-50 hover:bg-primary-100 rounded-lg transition-colors duration-200"
               title="AI Risk Analysis"
             >
               <Brain className="w-4 h-4 text-primary-600" />
-            </button>
+            </button> */}
             <button className="p-2 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors duration-200">
               <Eye className="w-4 h-4 text-gray-600" />
             </button>
@@ -371,6 +297,95 @@ export default function PatientsPage() {
     </div>
   )
 
+  const AddPatientModal = ({ show, onClose, onSubmit }) => {
+    const { register, handleSubmit, reset, formState: { errors } } = useForm();
+  
+    useEffect(() => {
+      if (!show) {
+        reset();
+      }
+    }, [show, reset]);
+  
+    if (!show) return null;
+  
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-white rounded-xl p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+        >
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-gray-900">Add New Patient</h2>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+          
+          <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="patientId" className="form-label">Patient ID</label>
+              <input type="text" id="patientId" {...register('patientId', { required: 'Patient ID is required' })} className="input-field" />
+              {errors.patientId && <p className="text-red-500 text-sm mt-1">{errors.patientId.message}</p>}
+            </div>
+            <div>
+              <label htmlFor="firstName" className="form-label">First Name</label>
+              <input type="text" id="firstName" {...register('firstName', { required: 'First Name is required' })} className="input-field" />
+              {errors.firstName && <p className="text-red-500 text-sm mt-1">{errors.firstName.message}</p>}
+            </div>
+            <div>
+              <label htmlFor="lastName" className="form-label">Last Name</label>
+              <input type="text" id="lastName" {...register('lastName', { required: 'Last Name is required' })} className="input-field" />
+              {errors.lastName && <p className="text-red-500 text-sm mt-1">{errors.lastName.message}</p>}
+            </div>
+            <div>
+              <label htmlFor="dateOfBirth" className="form-label">Date of Birth</label>
+              <input type="date" id="dateOfBirth" {...register('dateOfBirth', { required: 'Date of Birth is required' })} className="input-field" />
+              {errors.dateOfBirth && <p className="text-red-500 text-sm mt-1">{errors.dateOfBirth.message}</p>}
+            </div>
+            <div>
+              <label htmlFor="gender" className="form-label">Gender</label>
+              <select id="gender" {...register('gender', { required: 'Gender is required' })} className="input-field">
+                <option value="">Select Gender</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+              </select>
+              {errors.gender && <p className="text-red-500 text-sm mt-1">{errors.gender.message}</p>}
+            </div>
+            <div>
+              <label htmlFor="contactNumber" className="form-label">Contact Number</label>
+              <input type="text" id="contactNumber" {...register('contactNumber')} className="input-field" />
+            </div>
+            <div>
+              <label htmlFor="diagnosis" className="form-label">Diagnosis</label>
+              <input type="text" id="diagnosis" {...register('diagnosis', { required: 'Diagnosis is required' })} className="input-field" />
+              {errors.diagnosis && <p className="text-red-500 text-sm mt-1">{errors.diagnosis.message}</p>}
+            </div>
+            <div>
+              <label htmlFor="admittingPhysician" className="form-label">Admitting Physician</label>
+              <input type="text" id="admittingPhysician" {...register('admittingPhysician', { required: 'Admitting Physician is required' })} className="input-field" />
+              {errors.admittingPhysician && <p className="text-red-500 text-sm mt-1">{errors.admittingPhysician.message}</p>}
+            </div>
+            <div>
+              <label htmlFor="bedNumber" className="form-label">Bed Number</label>
+              <input type="text" id="bedNumber" {...register('bedNumber', { required: 'Bed Number is required' })} className="input-field" />
+              {errors.bedNumber && <p className="text-red-500 text-sm mt-1">{errors.bedNumber.message}</p>}
+            </div>
+            
+            <div className="md:col-span-2 flex justify-end space-x-2 mt-4">
+              <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
+              <button type="submit" className="btn-primary">Add Patient</button>
+            </div>
+          </form>
+        </motion.div>
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -389,7 +404,10 @@ export default function PatientsPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <h1 className="text-2xl font-bold text-gray-900">Patient Management</h1>
-            <button className="btn-primary flex items-center space-x-2">
+            <button 
+              onClick={() => setShowAddPatientModal(true)}
+              className="btn-primary flex items-center space-x-2"
+            >
               <Plus className="w-4 h-4" />
               <span>Add Patient</span>
             </button>
@@ -452,7 +470,11 @@ export default function PatientsPage() {
       </div>
 
       {showRiskModal && <RiskAnalysisModal />}
+      <AddPatientModal 
+        show={showAddPatientModal} 
+        onClose={() => setShowAddPatientModal(false)} 
+        onSubmit={handleAddPatient} 
+      />
     </div>
   )
 }
-
