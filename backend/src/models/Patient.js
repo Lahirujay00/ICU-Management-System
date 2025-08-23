@@ -98,6 +98,19 @@ const patientSchema = new mongoose.Schema({
     required: [true, 'Room number is required'],
     trim: true
   },
+  bedNumber: {
+    type: String,
+    required: [true, 'Bed number is required'],
+    trim: true
+  },
+  patientId: {
+    type: String,
+    trim: true
+  },
+  attendingPhysician: {
+    type: String,
+    trim: true
+  },
   status: {
     type: String,
     enum: ['stable', 'critical', 'improving', 'deteriorating', 'discharged'],

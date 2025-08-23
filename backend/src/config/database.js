@@ -4,7 +4,12 @@ const connectDB = async () => {
   try {
     const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/icu_management';
     
-    const conn = await mongoose.connect(mongoURI);
+    console.log('🔄 Attempting to connect to MongoDB...');
+    console.log('🔗 Connection string:', mongoURI.replace(/\/\/[^:]+:[^@]+@/, '//***:***@')); // Hide credentials
+    
+    const conn = await mongoose.connect(mongoURI, {
+      serverSelectionTimeoutMS: 5000, // 5 second timeout
+    });
 
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
     console.log(`📊 Database: ${conn.connection.name}`);
@@ -37,11 +42,16 @@ const connectDB = async () => {
       console.log('   - Cluster sleeping (free tier)');
       console.log('');
       console.log('🔧 Alternatives:');
-      console.log('   1. Install MongoDB locally: https://www.mongodb.com/try/download/community');
-      console.log('   2. Use MongoDB Atlas with correct credentials');
-      console.log('   3. Use a different cloud MongoDB service');
+      console.log('   1. Check your internet connection');
+      console.log('   2. Verify MongoDB Atlas cluster is running');
+      console.log('   3. Check IP whitelist settings in MongoDB Atlas');
+      console.log('   4. Install MongoDB locally: https://www.mongodb.com/try/download/community');
+      console.log('   5. Use MongoDB Compass to test connection');
     }
-    process.exit(1);
+    
+    console.log('⚠️ Server will continue running without database connection');
+    console.log('🔧 Fix the database connection to save patient data');
+    // Don't exit, let the server run for testing
   }
 };
 

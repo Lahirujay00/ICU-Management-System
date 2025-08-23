@@ -14,7 +14,7 @@ import equipmentRoutes from './routes/equipment.js';
 import dashboardRoutes from './routes/dashboard.js';
 
 const app = express();
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.BACKEND_PORT || process.env.PORT || 5000;
 
 // Connect to MongoDB
 connectDB();

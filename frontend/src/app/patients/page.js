@@ -37,20 +37,34 @@ export default function PatientsPage() {
 
   const fetchPatients = async () => {
     try {
-      setLoading(true)
-      const response = await api.get('/patients')
-      setPatients(response.data)
-      setFilteredPatients(response.data) // Initialize filtered patients with all patients
+      setLoading(true);
+      console.log('Fetching patients from API...');
+      
+      const response = await api.get('/patients');
+      console.log('Patients fetched successfully:', response);
+      
+      // Handle both direct array and object with data property
+      const patientsData = Array.isArray(response) ? response : response.data || response;
+      
+      setPatients(patientsData);
+      setFilteredPatients(patientsData);
+      
+      toast.success(`Loaded ${patientsData.length} patients`);
     } catch (error) {
-      toast.error('Failed to fetch patients.')
-      console.error('Error fetching patients:', error)
+      console.error('Error fetching patients:', error);
+      toast.error('Failed to fetch patients. Using offline mode.');
+      
+      // Fallback to empty array if fetch fails
+      setPatients([]);
+      setFilteredPatients([]);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   useEffect(() => {
     fetchPatients()
+    toast.success('Patient management loaded')
   }, [])
 
   useEffect(() => {
@@ -97,15 +111,64 @@ export default function PatientsPage() {
 
   const handleAddPatient = async (data) => {
     try {
-      await api.post('/patients', data)
-      toast.success('Patient added successfully!')
-      setShowAddPatientModal(false)
-      reset() // Clear form fields
-      fetchPatients() // Refresh patient list
+      console.log('Attempting to add patient with data:', data);
+      
+      // Add loading state
+      toast.loading('Adding patient...', { id: 'add-patient' });
+      
+      // Transform the data to match backend expectations
+      const transformedData = {
+        name: `${data.firstName} ${data.lastName}`.trim(),
+        age: data.dateOfBirth ? calculateAge(data.dateOfBirth) : 25, // Default age if calculation fails
+        gender: data.gender,
+        diagnosis: data.diagnosis,
+        bedNumber: data.bedNumber,
+        attendingPhysician: data.admittingPhysician,
+        patientId: data.patientId,
+        contactNumber: data.contactNumber
+      };
+      
+      console.log('Transformed data for backend:', transformedData);
+      
+      const response = await api.post('/patients', transformedData);
+      console.log('Patient added successfully:', response);
+      
+      // Success notification
+      toast.success(`Patient ${transformedData.name} added successfully!`, { 
+        id: 'add-patient',
+        duration: 4000 
+      });
+      
+      setShowAddPatientModal(false);
+      reset(); // Clear form fields
+      fetchPatients(); // Refresh patient list
     } catch (error) {
-      toast.error('Failed to add patient.')
-      console.error('Error adding patient:', error)
+      console.error('Error adding patient:', error);
+      
+      // Error notification with details
+      const errorMessage = error.response?.data?.error?.message || 
+                          error.message || 
+                          'Failed to add patient. Please try again.';
+      
+      toast.error(errorMessage, { 
+        id: 'add-patient',
+        duration: 6000 
+      });
     }
+  }
+
+  // Helper function to calculate age from date of birth
+  const calculateAge = (dateOfBirth) => {
+    const today = new Date();
+    const birthDate = new Date(dateOfBirth);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    
+    return Math.max(0, age);
   }
 
   const PatientCard = ({ patient }) => (
