@@ -1,7 +1,7 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const dashboardController = require('../../src/controllers/dashboardController');
-const authMiddleware = require('../middleware/auth');
+import * as dashboardController from '../controllers/dashboardController.js';
+import authMiddleware from '../middleware/auth.js';
 
 // All routes require authentication
 router.use(authMiddleware);
@@ -31,4 +31,4 @@ router.get('/analytics/patient-trends', dashboardController.getPatientTrends);
 router.get('/analytics/staff-performance', dashboardController.getStaffPerformance);
 router.get('/analytics/equipment-efficiency', dashboardController.getEquipmentEfficiency);
 
-module.exports = router;
+export default router;

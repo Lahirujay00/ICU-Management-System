@@ -57,9 +57,34 @@ class ApiClient {
     return this.request('/auth/profile')
   }
 
+  // Generic methods
+  async get(endpoint) {
+    return this.request(endpoint)
+  }
+
+  async post(endpoint, data) {
+    return this.request(endpoint, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async put(endpoint, data) {
+    return this.request(endpoint, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async delete(endpoint) {
+    return this.request(endpoint, {
+      method: 'DELETE',
+    })
+  }
+
   // Patient endpoints
   async getPatients() {
-    return this.request('/patients')
+    return this.get('/patients')
   }
 
   async getPatient(id) {
@@ -67,23 +92,15 @@ class ApiClient {
   }
 
   async createPatient(patientData) {
-    return this.request('/patients', {
-      method: 'POST',
-      body: JSON.stringify(patientData),
-    })
+    return this.post('/patients', patientData)
   }
 
   async updatePatient(id, patientData) {
-    return this.request(`/patients/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(patientData),
-    })
+    return this.put(`/patients/${id}`, patientData)
   }
 
   async deletePatient(id) {
-    return this.request(`/patients/${id}`, {
-      method: 'DELETE',
-    })
+    return this.delete(`/patients/${id}`)
   }
 
   // Staff endpoints
@@ -348,4 +365,4 @@ class ApiClient {
 }
 
 export const apiClient = new ApiClient()
-export default apiClient 
+export default apiClient

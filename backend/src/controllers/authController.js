@@ -1,7 +1,7 @@
-const User = require('../../src/models/User');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const { validationResult } = require('express-validator');
+import User from '../models/User.js';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { validationResult } from 'express-validator';
 
 // Helper function for sending errors
 const sendError = (res, statusCode, message, errors = null) => {
@@ -14,7 +14,7 @@ const sendError = (res, statusCode, message, errors = null) => {
 };
 
 // Register a new user
-exports.register = async (req, res) => {
+export const register = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return sendError(res, 400, 'Validation failed', errors);
@@ -48,7 +48,7 @@ exports.register = async (req, res) => {
 };
 
 // Login user
-exports.login = async (req, res) => {
+export const login = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return sendError(res, 400, 'Validation failed', errors);
@@ -91,19 +91,19 @@ exports.login = async (req, res) => {
 };
 
 // Forgot password (placeholder)
-exports.forgotPassword = async (req, res) => {
+export const forgotPassword = async (req, res) => {
   // In a real application, this would send an email with a reset link
   res.status(200).json({ message: 'Password reset link sent to your email (if registered)' });
 };
 
 // Reset password (placeholder)
-exports.resetPassword = async (req, res) => {
+export const resetPassword = async (req, res) => {
   // In a real application, this would verify token and update password
   res.status(200).json({ message: 'Password has been reset' });
 };
 
 // Get user profile
-exports.getProfile = async (req, res) => {
+export const getProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('-password');
     if (!user) {
@@ -117,7 +117,7 @@ exports.getProfile = async (req, res) => {
 };
 
 // Update user profile
-exports.updateProfile = async (req, res) => {
+export const updateProfile = async (req, res) => {
   const { name, email, department } = req.body;
 
   try {
@@ -139,7 +139,7 @@ exports.updateProfile = async (req, res) => {
 };
 
 // Change password
-exports.changePassword = async (req, res) => {
+export const changePassword = async (req, res) => {
   const { currentPassword, newPassword } = req.body;
 
   try {
@@ -164,6 +164,6 @@ exports.changePassword = async (req, res) => {
 };
 
 // Logout user (client-side token removal)
-exports.logout = (req, res) => {
+export const logout = (req, res) => {
   res.status(200).json({ message: 'Logged out successfully' });
 };

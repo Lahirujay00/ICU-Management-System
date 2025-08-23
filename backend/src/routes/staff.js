@@ -1,9 +1,9 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const { body } = require('express-validator');
-const staffController = require('../../src/controllers/staffController');
-const authMiddleware = require('../middleware/auth');
-const roleMiddleware = require('../middleware/role');
+import { body } from 'express-validator';
+import * as staffController from '../controllers/staffController.js';
+import authMiddleware from '../middleware/auth.js';
+import roleMiddleware from '../middleware/role.js';
 
 // Validation middleware
 const validateStaff = [
@@ -39,4 +39,4 @@ router.get('/filter/department/:department', staffController.filterStaffByDepart
 router.get('/departments', staffController.getDepartments);
 router.post('/departments', roleMiddleware(['admin']), staffController.createDepartment);
 
-module.exports = router;
+export default router;

@@ -1,5 +1,5 @@
-const Staff = require('../../models/Staff');
-const { validationResult } = require('express-validator');
+import Staff from '../models/Staff.js';
+import { validationResult } from 'express-validator';
 
 // Helper function for sending errors
 const sendError = (res, statusCode, message, errors = null) => {
@@ -12,7 +12,7 @@ const sendError = (res, statusCode, message, errors = null) => {
 };
 
 // Get all staff
-exports.getAllStaff = async (req, res) => {
+export const getAllStaff = async (req, res) => {
   try {
     const staff = await Staff.find().select('-password');
     res.json(staff);
@@ -23,7 +23,7 @@ exports.getAllStaff = async (req, res) => {
 };
 
 // Get staff by ID
-exports.getStaffById = async (req, res) => {
+export const getStaffById = async (req, res) => {
   try {
     const staff = await Staff.findById(req.params.id).select('-password');
     if (!staff) {
@@ -37,7 +37,7 @@ exports.getStaffById = async (req, res) => {
 };
 
 // Create a new staff member
-exports.createStaff = async (req, res) => {
+export const createStaff = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return sendError(res, 400, 'Validation failed', errors);
@@ -59,7 +59,7 @@ exports.createStaff = async (req, res) => {
 };
 
 // Update a staff member
-exports.updateStaff = async (req, res) => {
+export const updateStaff = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return sendError(res, 400, 'Validation failed', errors);
@@ -80,7 +80,7 @@ exports.updateStaff = async (req, res) => {
 };
 
 // Delete a staff member
-exports.deleteStaff = async (req, res) => {
+export const deleteStaff = async (req, res) => {
   try {
     const staff = await Staff.findById(req.params.id);
     if (!staff) {
@@ -96,46 +96,46 @@ exports.deleteStaff = async (req, res) => {
 };
 
 // Get staff schedule (placeholder)
-exports.getStaffSchedule = async (req, res) => {
+export const getStaffSchedule = async (req, res) => {
   res.status(200).json({ message: `Schedule for staff ${req.params.id}` });
 };
 
 // Update staff schedule (placeholder)
-exports.updateStaffSchedule = async (req, res) => {
+export const updateStaffSchedule = async (req, res) => {
   res.status(200).json({ message: `Schedule updated for staff ${req.params.id}` });
 };
 
 // Get staff's patients (placeholder)
-exports.getStaffPatients = async (req, res) => {
+export const getStaffPatients = async (req, res) => {
   res.status(200).json({ message: `Patients for staff ${req.params.id}` });
 };
 
 // Update staff status (placeholder)
-exports.updateStaffStatus = async (req, res) => {
+export const updateStaffStatus = async (req, res) => {
   res.status(200).json({ message: `Status updated for staff ${req.params.id}` });
 };
 
 // Search staff (placeholder)
-exports.searchStaff = async (req, res) => {
+export const searchStaff = async (req, res) => {
   res.status(200).json({ message: `Searching staff with query: ${req.query.q}` });
 };
 
 // Filter staff by role (placeholder)
-exports.filterStaffByRole = async (req, res) => {
+export const filterStaffByRole = async (req, res) => {
   res.status(200).json({ message: `Filtering staff by role: ${req.params.role}` });
 };
 
 // Filter staff by department (placeholder)
-exports.filterStaffByDepartment = async (req, res) => {
+export const filterStaffByDepartment = async (req, res) => {
   res.status(200).json({ message: `Filtering staff by department: ${req.params.department}` });
 };
 
 // Get departments (placeholder)
-exports.getDepartments = async (req, res) => {
+export const getDepartments = async (req, res) => {
   res.status(200).json({ message: 'List of departments' });
 };
 
 // Create department (placeholder)
-exports.createDepartment = async (req, res) => {
+export const createDepartment = async (req, res) => {
   res.status(200).json({ message: 'Department created' });
 };

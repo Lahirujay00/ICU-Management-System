@@ -1,20 +1,20 @@
-const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const morgan = require('morgan');
-const compression = require('compression');
-const rateLimit = require('express-rate-limit');
-require('dotenv').config();
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import morgan from 'morgan';
+import compression from 'compression';
+import rateLimit from 'express-rate-limit';
+import 'dotenv/config';
 
-const connectDB = require('./config/database');
-const authRoutes = require('./routes/auth');
-const patientRoutes = require('./routes/patients');
-const staffRoutes = require('./routes/staff');
-const equipmentRoutes = require('./routes/equipment');
-const dashboardRoutes = require('./routes/dashboard');
+import connectDB from './config/database.js';
+import authRoutes from './routes/auth.js';
+import patientRoutes from './routes/patients.js';
+import staffRoutes from './routes/staff.js';
+import equipmentRoutes from './routes/equipment.js';
+import dashboardRoutes from './routes/dashboard.js';
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 // Connect to MongoDB
 connectDB();
@@ -94,4 +94,4 @@ app.listen(PORT, () => {
   console.log(`🔗 Health check: http://localhost:${PORT}/health`);
 });
 
-module.exports = app; 
+export default app;

@@ -1,9 +1,9 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const { body } = require('express-validator');
-const equipmentController = require('../../src/controllers/equipmentController');
-const authMiddleware = require('../middleware/auth');
-const roleMiddleware = require('../middleware/role');
+import { body } from 'express-validator';
+import * as equipmentController from '../controllers/equipmentController.js';
+import authMiddleware from '../middleware/auth.js';
+import roleMiddleware from '../middleware/role.js';
 
 // Validation middleware
 const validateEquipment = [
@@ -41,4 +41,4 @@ router.get('/filter/location/:location', equipmentController.filterEquipmentByLo
 router.get('/maintenance/scheduled', equipmentController.getScheduledMaintenance);
 router.post('/maintenance/schedule', roleMiddleware(['admin']), equipmentController.scheduleMaintenance);
 
-module.exports = router;
+export default router;

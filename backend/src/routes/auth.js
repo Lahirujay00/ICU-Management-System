@@ -1,8 +1,8 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const { body } = require('express-validator');
-const authController = require('../../src/controllers/authController');
-const authMiddleware = require('../middleware/auth');
+import { body } from 'express-validator';
+import * as authController from '../../src/controllers/authController.js';
+import authMiddleware from '../middleware/auth.js';
 
 // Validation middleware
 const validateRegistration = [
@@ -29,4 +29,4 @@ router.put('/profile', authMiddleware, authController.updateProfile);
 router.put('/change-password', authMiddleware, authController.changePassword);
 router.post('/logout', authMiddleware, authController.logout);
 
-module.exports = router;
+export default router;

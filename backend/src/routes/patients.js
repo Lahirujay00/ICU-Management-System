@@ -1,18 +1,17 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const { body } = require('express-validator');
-const patientController = require('../../src/controllers/patientController');
-const authMiddleware = require('../middleware/auth');
-const roleMiddleware = require('../middleware/role');
+import { body } from 'express-validator';
+import * as patientController from '../controllers/patientController.js';
+import authMiddleware from '../middleware/auth.js';
+import roleMiddleware from '../middleware/role.js';
 
 // Validation middleware
 const validatePatient = [
-  body('name').trim().isLength({ min: 2 }),
-  body('age').isInt({ min: 0, max: 150 }),
-  body('gender').isIn(['male', 'female', 'other']),
-  body('admissionDate').isISO8601(),
-  body('diagnosis').trim().notEmpty(),
-  body('roomNumber').trim().notEmpty()
+  body('name').trim().notEmpty().withMessage('Patient name is required'),
+  body('age').isInt({ min: 0, max: 150 }).withMessage('Age must be between 0 and 150'),
+  body('gender').isIn(['male', 'female', 'other']).withMessage('Gender must be male, female, or other'),
+  body('diagnosis').trim().notEmpty().withMessage('Diagnosis is required'),
+  body('bedNumber').trim().notEmpty().withMessage('Bed number is required')
 ];
 
 // All routes require authentication
@@ -21,7 +20,7 @@ router.use(authMiddleware);
 // Patient CRUD operations
 router.get('/', patientController.getAllPatients);
 router.get('/:id', patientController.getPatientById);
-router.post('/', roleMiddleware(['admin', 'doctor']), validatePatient, patientController.createPatient);
+router.post('/', validatePatient, patientController.createPatient);
 router.put('/:id', roleMiddleware(['admin', 'doctor']), validatePatient, patientController.updatePatient);
 router.delete('/:id', roleMiddleware(['admin']), patientController.deletePatient);
 
@@ -37,4 +36,4 @@ router.get('/search/query', patientController.searchPatients);
 router.get('/filter/status/:status', patientController.filterPatientsByStatus);
 router.get('/filter/room/:roomNumber', patientController.filterPatientsByRoom);
 
-module.exports = router;
+export default router;

@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const vitalSignsSchema = new mongoose.Schema({
   temperature: {
@@ -171,4 +171,4 @@ patientSchema.methods.isCritical = function() {
   );
 };
 
-module.exports = mongoose.model('Patient', patientSchema); 
+export default mongoose.model('Patient', patientSchema); 

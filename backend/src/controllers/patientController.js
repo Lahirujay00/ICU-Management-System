@@ -1,5 +1,5 @@
-const Patient = require('../../models/Patient');
-const { validationResult } = require('express-validator');
+import Patient from '../models/Patient.js';
+import { validationResult } from 'express-validator';
 
 // Helper function for sending errors
 const sendError = (res, statusCode, message, errors = null) => {
@@ -12,7 +12,7 @@ const sendError = (res, statusCode, message, errors = null) => {
 };
 
 // Get all patients
-exports.getAllPatients = async (req, res) => {
+export const getAllPatients = async (req, res) => {
   try {
     const patients = await Patient.find();
     res.json(patients);
@@ -23,7 +23,7 @@ exports.getAllPatients = async (req, res) => {
 };
 
 // Get patient by ID
-exports.getPatientById = async (req, res) => {
+export const getPatientById = async (req, res) => {
   try {
     const patient = await Patient.findById(req.params.id);
     if (!patient) {
@@ -37,24 +37,34 @@ exports.getPatientById = async (req, res) => {
 };
 
 // Create a new patient
-exports.createPatient = async (req, res) => {
+export const createPatient = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return sendError(res, 400, 'Validation failed', errors);
   }
 
   try {
-    const newPatient = new Patient(req.body);
+    // Map frontend fields to backend model fields
+    const patientData = {
+      ...req.body,
+      roomNumber: req.body.bedNumber || req.body.roomNumber, // Map bedNumber to roomNumber
+      admissionDate: req.body.admissionDate || new Date()
+    };
+    
+    const newPatient = new Patient(patientData);
     const patient = await newPatient.save();
     res.status(201).json(patient);
   } catch (err) {
-    console.error(err.message);
+    console.error('Error creating patient:', err.message);
+    if (err.name === 'ValidationError') {
+      return sendError(res, 400, 'Validation error', { array: () => Object.keys(err.errors).map(key => ({ msg: err.errors[key].message, param: key })) });
+    }
     sendError(res, 500, 'Server error while creating patient');
   }
 };
 
 // Update a patient
-exports.updatePatient = async (req, res) => {
+export const updatePatient = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return sendError(res, 400, 'Validation failed', errors);
@@ -75,7 +85,7 @@ exports.updatePatient = async (req, res) => {
 };
 
 // Delete a patient
-exports.deletePatient = async (req, res) => {
+export const deletePatient = async (req, res) => {
   try {
     const patient = await Patient.findById(req.params.id);
     if (!patient) {
@@ -91,41 +101,41 @@ exports.deletePatient = async (req, res) => {
 };
 
 // Get patient vitals (placeholder)
-exports.getPatientVitals = async (req, res) => {
+export const getPatientVitals = async (req, res) => {
   res.status(200).json({ message: `Vitals for patient ${req.params.id}` });
 };
 
 // Add vital signs (placeholder)
-exports.addVitalSigns = async (req, res) => {
+export const addVitalSigns = async (req, res) => {
   res.status(200).json({ message: `Vital signs added for patient ${req.params.id}` });
 };
 
 // Get patient notes (placeholder)
-exports.getPatientNotes = async (req, res) => {
+export const getPatientNotes = async (req, res) => {
   res.status(200).json({ message: `Notes for patient ${req.params.id}` });
 };
 
 // Add patient note (placeholder)
-exports.addPatientNote = async (req, res) => {
+export const addPatientNote = async (req, res) => {
   res.status(200).json({ message: `Note added for patient ${req.params.id}` });
 };
 
 // Update patient status (placeholder)
-exports.updatePatientStatus = async (req, res) => {
+export const updatePatientStatus = async (req, res) => {
   res.status(200).json({ message: `Status updated for patient ${req.params.id}` });
 };
 
 // Search patients (placeholder)
-exports.searchPatients = async (req, res) => {
+export const searchPatients = async (req, res) => {
   res.status(200).json({ message: `Searching patients with query: ${req.query.q}` });
 };
 
 // Filter patients by status (placeholder)
-exports.filterPatientsByStatus = async (req, res) => {
+export const filterPatientsByStatus = async (req, res) => {
   res.status(200).json({ message: `Filtering patients by status: ${req.params.status}` });
 };
 
 // Filter patients by room (placeholder)
-exports.filterPatientsByRoom = async (req, res) => {
+export const filterPatientsByRoom = async (req, res) => {
   res.status(200).json({ message: `Filtering patients by room: ${req.params.roomNumber}` });
 };

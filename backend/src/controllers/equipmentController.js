@@ -1,5 +1,5 @@
-const Equipment = require('../../models/Equipment'); // Assuming Equipment model is here
-const { validationResult } = require('express-validator');
+import Equipment from '../models/Equipment.js'; // Equipment model
+import { validationResult } from 'express-validator';
 
 // Helper function for sending errors
 const sendError = (res, statusCode, message, errors = null) => {
@@ -12,7 +12,7 @@ const sendError = (res, statusCode, message, errors = null) => {
 };
 
 // Get all equipment
-exports.getAllEquipment = async (req, res) => {
+export const getAllEquipment = async (req, res) => {
   try {
     const equipment = await Equipment.find();
     res.json(equipment);
@@ -23,7 +23,7 @@ exports.getAllEquipment = async (req, res) => {
 };
 
 // Get equipment by ID
-exports.getEquipmentById = async (req, res) => {
+export const getEquipmentById = async (req, res) => {
   try {
     const equipment = await Equipment.findById(req.params.id);
     if (!equipment) {
@@ -37,7 +37,7 @@ exports.getEquipmentById = async (req, res) => {
 };
 
 // Create a new equipment
-exports.createEquipment = async (req, res) => {
+export const createEquipment = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return sendError(res, 400, 'Validation failed', errors);
@@ -54,7 +54,7 @@ exports.createEquipment = async (req, res) => {
 };
 
 // Update an equipment
-exports.updateEquipment = async (req, res) => {
+export const updateEquipment = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return sendError(res, 400, 'Validation failed', errors);
@@ -75,7 +75,7 @@ exports.updateEquipment = async (req, res) => {
 };
 
 // Delete an equipment
-exports.deleteEquipment = async (req, res) => {
+export const deleteEquipment = async (req, res) => {
   try {
     const equipment = await Equipment.findById(req.params.id);
     if (!equipment) {
@@ -91,56 +91,56 @@ exports.deleteEquipment = async (req, res) => {
 };
 
 // Get equipment maintenance records (placeholder)
-exports.getEquipmentMaintenance = async (req, res) => {
+export const getEquipmentMaintenance = async (req, res) => {
   res.status(200).json({ message: `Maintenance records for equipment ${req.params.id}` });
 };
 
 // Add maintenance record (placeholder)
-exports.addMaintenanceRecord = async (req, res) => {
+export const addMaintenanceRecord = async (req, res) => {
   res.status(200).json({ message: `Maintenance record added for equipment ${req.params.id}` });
 };
 
 // Update equipment status (placeholder)
-exports.updateEquipmentStatus = async (req, res) => {
+export const updateEquipmentStatus = async (req, res) => {
   res.status(200).json({ message: `Status updated for equipment ${req.params.id}` });
 };
 
 // Assign equipment (placeholder)
-exports.assignEquipment = async (req, res) => {
+export const assignEquipment = async (req, res) => {
   res.status(200).json({ message: `Equipment ${req.params.id} assigned` });
 };
 
 // Unassign equipment (placeholder)
-exports.unassignEquipment = async (req, res) => {
+export const unassignEquipment = async (req, res) => {
   res.status(200).json({ message: `Equipment ${req.params.id} unassigned` });
 };
 
 // Search equipment (placeholder)
-exports.searchEquipment = async (req, res) => {
+export const searchEquipment = async (req, res) => {
   res.status(200).json({ message: `Searching equipment with query: ${req.query.q}` });
 };
 
 // Filter equipment by type (placeholder)
-exports.filterEquipmentByType = async (req, res) => {
+export const filterEquipmentByType = async (req, res) => {
   res.status(200).json({ message: `Filtering equipment by type: ${req.params.type}` });
 };
 
 // Filter equipment by status (placeholder)
-exports.filterEquipmentByStatus = async (req, res) => {
+export const filterEquipmentByStatus = async (req, res) => {
   res.status(200).json({ message: `Filtering equipment by status: ${req.params.status}` });
 };
 
 // Filter equipment by location (placeholder)
-exports.filterEquipmentByLocation = async (req, res) => {
+export const filterEquipmentByLocation = async (req, res) => {
   res.status(200).json({ message: `Filtering equipment by location: ${req.params.location}` });
 };
 
 // Get scheduled maintenance (placeholder)
-exports.getScheduledMaintenance = async (req, res) => {
+export const getScheduledMaintenance = async (req, res) => {
   res.status(200).json({ message: 'Scheduled maintenance list' });
 };
 
 // Schedule maintenance (placeholder)
-exports.scheduleMaintenance = async (req, res) => {
+export const scheduleMaintenance = async (req, res) => {
   res.status(200).json({ message: 'Maintenance scheduled' });
 };
