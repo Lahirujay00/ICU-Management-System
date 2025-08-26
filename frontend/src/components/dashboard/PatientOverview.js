@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { useForm } from 'react-hook-form'
+import { useRouter } from 'next/navigation'
 import { 
   User, 
   Heart, 
@@ -27,6 +28,7 @@ import PatientAdmissionModal from '../patients/PatientAdmissionModal'
 import { apiClient } from '@/lib/api'
 
 export default function PatientOverview({ detailed = false }) {
+  const router = useRouter()
   const [patients, setPatients] = useState([])
   const [filteredPatients, setFilteredPatients] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
@@ -103,9 +105,6 @@ export default function PatientOverview({ detailed = false }) {
     try {
       console.log('🚀 Admitting patient via PatientOverview:', patientData);
       
-      // Show loading toast
-      toast.loading('Admitting patient...', { id: 'admit-patient' });
-      
       // Make API call to save patient to database
       const response = await apiClient.createPatient(patientData);
       console.log('✅ Patient admitted successfully:', response);
@@ -117,7 +116,6 @@ export default function PatientOverview({ detailed = false }) {
       
       // Show success notification
       toast.success(`Patient ${patientData.name} admitted successfully!`, { 
-        id: 'admit-patient',
         duration: 5000 
       });
     } catch (error) {
@@ -125,7 +123,6 @@ export default function PatientOverview({ detailed = false }) {
       
       // Show error notification
       toast.error(`Failed to admit patient: ${error.message}`, { 
-        id: 'admit-patient',
         duration: 8000 
       });
     }
@@ -133,8 +130,6 @@ export default function PatientOverview({ detailed = false }) {
 
   const handleStatusUpdate = async (patientId, newStatus) => {
     try {
-      toast.loading('Updating patient status...', { id: 'status-update' });
-      
       // Update patient status via API
       const response = await apiClient.updatePatient(patientId, { status: newStatus });
       console.log('✅ Status updated successfully:', response);
@@ -149,7 +144,6 @@ export default function PatientOverview({ detailed = false }) {
       );
       
       toast.success(`Patient status updated to ${newStatus}!`, { 
-        id: 'status-update',
         duration: 3000 
       });
     } catch (error) {
@@ -159,7 +153,6 @@ export default function PatientOverview({ detailed = false }) {
                           'Failed to update patient status. Please try again.';
       
       toast.error(`❌ ${errorMessage}`, { 
-        id: 'status-update',
         duration: 5000 
       });
     }
@@ -188,8 +181,6 @@ export default function PatientOverview({ detailed = false }) {
 
   const confirmDischargePatient = async (dischargeData) => {
     try {
-      toast.loading('Processing discharge...', { id: 'discharge-patient' });
-      
       // Update patient with discharge information
       const updateData = {
         status: 'discharged',
@@ -203,7 +194,7 @@ export default function PatientOverview({ detailed = false }) {
       
       // Create discharge record
       const dischargeRecord = {
-        patientId: patientToDischarge._id,
+        patientId: patientToDischarge.patientId || patientToDischarge._id,
         patientName: patientToDischarge.name,
         bedNumber: patientToDischarge.bedNumber,
         dischargeDate: new Date().toISOString(),
@@ -224,7 +215,6 @@ export default function PatientOverview({ detailed = false }) {
                         'transferred';
       
       toast.success(`Patient ${patientToDischarge.name} has been ${reasonText} successfully!`, { 
-        id: 'discharge-patient',
         duration: 5000 
       });
       
@@ -240,7 +230,6 @@ export default function PatientOverview({ detailed = false }) {
                           'Failed to process discharge. Please try again.';
       
       toast.error(`❌ ${errorMessage}`, { 
-        id: 'discharge-patient',
         duration: 8000 
       });
     }
@@ -248,13 +237,10 @@ export default function PatientOverview({ detailed = false }) {
 
   const confirmDeletePatient = async () => {
     try {
-      toast.loading('Deleting patient...', { id: 'delete-patient' });
-      
       await apiClient.deletePatient(patientToDelete._id);
       
       toast.success(`Patient ${patientToDelete.name} deleted successfully!`, { 
-        id: 'delete-patient',
-        duration: 5000 
+        duration: 3000 
       });
       
       setShowDeleteModal(false);
@@ -269,7 +255,6 @@ export default function PatientOverview({ detailed = false }) {
                           'Failed to delete patient. Please try again.';
       
       toast.error(`❌ ${errorMessage}`, { 
-        id: 'delete-patient',
         duration: 8000 
       });
     }
@@ -277,12 +262,9 @@ export default function PatientOverview({ detailed = false }) {
 
   const handleUpdatePatient = async (updatedData) => {
     try {
-      toast.loading('Updating patient...', { id: 'update-patient' });
-      
       const response = await apiClient.updatePatient(editingPatient._id, updatedData);
       
       toast.success(`Patient ${updatedData.name || editingPatient.name} updated successfully!`, { 
-        id: 'update-patient',
         duration: 5000 
       });
       
@@ -298,7 +280,6 @@ export default function PatientOverview({ detailed = false }) {
                           'Failed to update patient. Please try again.';
       
       toast.error(`❌ ${errorMessage}`, { 
-        id: 'update-patient',
         duration: 8000 
       });
     }
@@ -433,14 +414,80 @@ export default function PatientOverview({ detailed = false }) {
           </div>
 
           {/* Patient Info */}
-          <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-            <div className="text-sm text-gray-600 space-y-1">
-              <p><strong>Age:</strong> {patient.age} years</p>
-              <p><strong>Gender:</strong> {patient.gender}</p>
-              <p><strong>Diagnosis:</strong> {patient.diagnosis}</p>
-              {patient.attendingPhysician && (
-                <p><strong>Physician:</strong> {patient.attendingPhysician}</p>
-              )}
+          <div className="mb-4 space-y-3">
+            {/* Basic Information */}
+            <div className="p-3 bg-gray-50 rounded-lg">
+              <h4 className="text-sm font-semibold text-gray-800 mb-2 flex items-center">
+                <User className="w-4 h-4 mr-1" />
+                Patient Information
+              </h4>
+              <div className="text-sm text-gray-600 space-y-1">
+                <div className="flex justify-between">
+                  <span><strong>Age:</strong></span>
+                  <span>{patient.age} years</span>
+                </div>
+                <div className="flex justify-between">
+                  <span><strong>Gender:</strong></span>
+                  <span className="capitalize">{patient.gender}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span><strong>Patient ID:</strong></span>
+                  <span className="font-mono text-xs">{patient.patientId || 'N/A'}</span>
+                </div>
+                {patient.contactNumber && (
+                  <div className="flex justify-between">
+                    <span><strong>Contact:</strong></span>
+                    <span className="font-mono text-xs">{patient.contactNumber}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Medical Information */}
+            <div className="p-3 bg-red-50 rounded-lg border border-red-200">
+              <h4 className="text-sm font-semibold text-gray-800 mb-2 flex items-center">
+                <Stethoscope className="w-4 h-4 mr-1 text-red-600" />
+                Medical Details
+              </h4>
+              <div className="text-sm text-gray-600 space-y-1">
+                <div>
+                  <span className="font-medium">Diagnosis:</span>
+                  <p className="text-gray-800 mt-1">{patient.diagnosis}</p>
+                </div>
+                {patient.attendingPhysician && (
+                  <div className="flex justify-between">
+                    <span><strong>Physician:</strong></span>
+                    <span>{patient.attendingPhysician}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Admission Details */}
+            <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+              <h4 className="text-sm font-semibold text-gray-800 mb-2 flex items-center">
+                <Clock className="w-4 h-4 mr-1 text-green-600" />
+                Admission Details
+              </h4>
+              <div className="text-sm text-gray-600 space-y-1">
+                <div className="flex justify-between">
+                  <span><strong>Admitted:</strong></span>
+                  <span>{patient.admissionDate ? new Date(patient.admissionDate).toLocaleDateString() : 'Recent'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span><strong>Duration:</strong></span>
+                  <span>
+                    {patient.admissionDate ? 
+                      Math.ceil((new Date() - new Date(patient.admissionDate)) / (1000 * 60 * 60 * 24)) + ' days' : 
+                      'N/A'
+                    }
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span><strong>Last Updated:</strong></span>
+                  <span>{patient.updatedAt ? new Date(patient.updatedAt).toLocaleDateString() : 'N/A'}</span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1160,13 +1207,22 @@ export default function PatientOverview({ detailed = false }) {
           <h2 className="text-2xl font-bold text-gray-900">Patient Overview</h2>
           <p className="text-gray-600">Monitor patient status and vital signs in real-time</p>
         </div>
-        <button
-          onClick={() => setIsAdmissionModalOpen(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Admit Patient
-        </button>
+        <div className="flex space-x-3">
+          <button
+            onClick={() => router.push('/discharge-history')}
+            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+          >
+            <Eye className="w-4 h-4" />
+            View Discharge History
+          </button>
+          <button
+            onClick={() => setIsAdmissionModalOpen(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Admit Patient
+          </button>
+        </div>
       </div>
 
       {/* Search and Filter Controls */}

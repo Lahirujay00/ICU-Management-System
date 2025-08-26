@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
+import { useSearchParams } from 'next/navigation'
 import Overview from './dashboard/Overview'
 import PatientOverview from './dashboard/PatientOverview'
 import StaffOverview from './dashboard/StaffOverview'
@@ -14,13 +15,20 @@ import Header from './navigation/Header'
 
 export default function Dashboard() {
   const { data: session } = useSession()
+  const searchParams = useSearchParams()
   const [activeTab, setActiveTab] = useState('overview')
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
+    // Check for tab parameter in URL
+    const tabParam = searchParams.get('tab')
+    if (tabParam) {
+      setActiveTab(tabParam)
+    }
+    
     // Load initial dashboard data
     loadDashboardData()
-  }, [])
+  }, [searchParams])
 
   const loadDashboardData = async () => {
     try {
