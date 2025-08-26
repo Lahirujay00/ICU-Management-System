@@ -212,9 +212,8 @@ export default function PatientOverview({ detailed = false }) {
     }
   }
 
-  // Enhanced Patient Card based on your original design but with edit/delete options
+  // Enhanced Patient Card based on your original design but with edit/delete options and bed slot UI
   const EnhancedPatientCard = ({ patient }) => {
-    const [isExpanded, setIsExpanded] = useState(false)
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
 
     const getStatusColor = (status) => {
@@ -243,14 +242,25 @@ export default function PatientOverview({ detailed = false }) {
       }
     }
 
+    const getBedStatusColor = (bedNumber) => {
+      // Different colors for different bed types
+      const bedNum = parseInt(bedNumber?.replace(/\D/g, '') || '0')
+      if (bedNum <= 10) return 'bg-blue-500'
+      if (bedNum <= 20) return 'bg-green-500'
+      if (bedNum <= 30) return 'bg-purple-500'
+      return 'bg-orange-500'
+    }
+
     const handleStatusChange = async (newStatus) => {
       if (isUpdatingStatus) return
       
       setIsUpdatingStatus(true)
       try {
         await handleStatusUpdate(patient._id, newStatus)
+        toast.success(`Status updated to ${newStatus}`)
       } catch (error) {
         console.error('Error updating status:', error)
+        toast.error('Failed to update status')
       } finally {
         setIsUpdatingStatus(false)
       }
@@ -259,11 +269,17 @@ export default function PatientOverview({ detailed = false }) {
     return (
       <div className="bg-white rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow">
         <div className="p-4">
-          {/* Header */}
+          {/* Header with Bed Slot UI */}
           <div className="flex items-start justify-between mb-3">
             <div className="flex items-center space-x-3">
-              <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
-                <User className="h-5 w-5 text-blue-600" />
+              {/* Bed Slot Indicator */}
+              <div className="relative">
+                <div className={`h-10 w-10 ${getBedStatusColor(patient.bedNumber)} rounded-lg flex items-center justify-center`}>
+                  <Bed className="h-5 w-5 text-white" />
+                </div>
+                <div className="absolute -top-2 -right-2 bg-white border border-gray-300 rounded-full px-2 py-0.5 text-xs font-bold text-gray-700">
+                  {patient.bedNumber?.replace(/\D/g, '') || 'N/A'}
+                </div>
               </div>
               <div>
                 <h3 className="font-semibold text-gray-900">{patient.name}</h3>
@@ -275,19 +291,13 @@ export default function PatientOverview({ detailed = false }) {
                 {getStatusIcon(patient.status)}
                 <span>{patient.status}</span>
               </div>
-              {/* Enhanced action buttons */}
+              {/* Action buttons */}
               <div className="flex space-x-1">
-                <button 
-                  onClick={() => handleViewPatient(patient)}
-                  className="p-1 bg-blue-50 hover:bg-blue-100 rounded transition-colors"
-                  title="View Patient Details"
-                >
-                  <Eye className="w-4 h-4 text-blue-600" />
-                </button>
                 <button 
                   onClick={() => handleEditPatient(patient)}
                   className="p-1 bg-green-50 hover:bg-green-100 rounded transition-colors"
                   title="Edit Patient"
+                  disabled={isUpdatingStatus}
                 >
                   <Edit className="w-4 h-4 text-green-600" />
                 </button>
@@ -295,6 +305,7 @@ export default function PatientOverview({ detailed = false }) {
                   onClick={() => handleDeletePatient(patient)}
                   className="p-1 bg-red-50 hover:bg-red-100 rounded transition-colors"
                   title="Delete Patient"
+                  disabled={isUpdatingStatus}
                 >
                   <X className="w-4 h-4 text-red-600" />
                 </button>
@@ -302,19 +313,23 @@ export default function PatientOverview({ detailed = false }) {
             </div>
           </div>
 
-          {/* Basic Info */}
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            <div className="flex items-center space-x-2 text-sm text-gray-600">
-              <Bed className="h-4 w-4" />
-              <span>Bed {patient.bedNumber}</span>
-            </div>
-            <div className="flex items-center space-x-2 text-sm text-gray-600">
-              <Clock className="h-4 w-4" />
-              <span>{patient.admissionDate}</span>
+          {/* Bed Information */}
+          <div className="mb-4 p-3 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Bed className="h-4 w-4 text-blue-600" />
+                <span className="text-sm font-medium text-blue-900">Bed {patient.bedNumber}</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Clock className="h-4 w-4 text-purple-600" />
+                <span className="text-sm text-purple-700">
+                  {patient.admissionDate ? new Date(patient.admissionDate).toLocaleDateString() : 'Recent'}
+                </span>
+              </div>
             </div>
           </div>
 
-          {/* Additional Patient Info */}
+          {/* Patient Info */}
           <div className="mb-4 p-3 bg-gray-50 rounded-lg">
             <div className="text-sm text-gray-600 space-y-1">
               <p><strong>Age:</strong> {patient.age} years</p>
@@ -339,7 +354,7 @@ export default function PatientOverview({ detailed = false }) {
                     : 'bg-white text-red-600 border-red-300 hover:bg-red-50'
                 }`}
               >
-                Critical
+                {isUpdatingStatus ? '...' : 'Critical'}
               </button>
               <button
                 onClick={() => handleStatusChange('stable')}
@@ -350,7 +365,7 @@ export default function PatientOverview({ detailed = false }) {
                     : 'bg-white text-green-600 border-green-300 hover:bg-green-50'
                 }`}
               >
-                Stable
+                {isUpdatingStatus ? '...' : 'Stable'}
               </button>
               <button
                 onClick={() => handleStatusChange('improving')}
@@ -361,50 +376,10 @@ export default function PatientOverview({ detailed = false }) {
                     : 'bg-white text-blue-600 border-blue-300 hover:bg-blue-50'
                 }`}
               >
-                Improving
+                {isUpdatingStatus ? '...' : 'Improving'}
               </button>
             </div>
           </div>
-
-          {/* Actions */}
-          <div className="flex space-x-2">
-            <button
-              onClick={() => setSelectedPatient(patient)}
-              className="flex-1 bg-blue-600 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
-            >
-              View Details
-            </button>
-            <button
-              onClick={() => setIsExpanded(!isExpanded)}
-              className="px-3 py-2 text-gray-600 hover:text-gray-800 transition-colors"
-            >
-              {isExpanded ? 'Less' : 'More'}
-            </button>
-          </div>
-
-          {/* Expanded Content */}
-          {isExpanded && (
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Age:</span>
-                  <span className="font-medium">{patient.age} years</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Gender:</span>
-                  <span className="font-medium">{patient.gender}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Diagnosis:</span>
-                  <span className="font-medium">{patient.diagnosis}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Attending:</span>
-                  <span className="font-medium">{patient.attendingPhysician}</span>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     )
@@ -660,6 +635,220 @@ export default function PatientOverview({ detailed = false }) {
     );
   };
 
+  // Edit Patient Modal
+  const EditPatientModal = ({ show, patient, onClose, onSubmit }) => {
+    const { register, handleSubmit, reset, setValue, formState: { errors, isSubmitting } } = useForm();
+  
+    useEffect(() => {
+      if (show && patient) {
+        // Pre-populate form with patient data
+        const nameParts = patient.name.split(' ');
+        setValue('firstName', nameParts[0] || '');
+        setValue('lastName', nameParts.slice(1).join(' ') || '');
+        setValue('gender', patient.gender);
+        setValue('diagnosis', patient.diagnosis);
+        setValue('attendingPhysician', patient.attendingPhysician);
+        setValue('bedNumber', patient.bedNumber);
+        setValue('contactNumber', patient.contactNumber || '');
+        setValue('patientId', patient.patientId);
+      } else {
+        reset();
+      }
+    }, [show, patient, reset, setValue]);
+
+    const handleFormSubmit = async (data) => {
+      try {
+        // Transform the data to match backend expectations
+        const transformedData = {
+          name: `${data.firstName} ${data.lastName}`.trim(),
+          gender: data.gender,
+          diagnosis: data.diagnosis,
+          attendingPhysician: data.attendingPhysician,
+          bedNumber: data.bedNumber,
+          contactNumber: data.contactNumber,
+          patientId: data.patientId
+        };
+        
+        await onSubmit(transformedData);
+        reset();
+      } catch (error) {
+        console.error('❌ Error in edit form submission:', error);
+        toast.error(`❌ Edit failed: ${error.message}`);
+      }
+    };
+  
+    if (!show || !patient) return null;
+  
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-white rounded-xl p-8 max-w-2xl w-full mx-4 max-h-[95vh] overflow-y-auto shadow-2xl"
+        >
+          <div className="flex items-center justify-between mb-8">
+            <h2 className="text-3xl font-bold text-gray-900 flex items-center">
+              <Edit className="w-8 h-8 mr-3 text-green-600" />
+              Edit Patient
+            </h2>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+          
+          <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
+            {/* Personal Information */}
+            <div className="bg-green-50 p-6 rounded-lg">
+              <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                <User className="w-5 h-5 mr-2 text-green-600" />
+                Personal Information
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label htmlFor="edit-firstName" className="block text-sm font-medium text-gray-700 mb-2">
+                    First Name <span className="text-red-500">*</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    id="edit-firstName" 
+                    {...register('firstName', { required: 'First Name is required' })} 
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 ${errors.firstName ? 'border-red-300' : 'border-gray-300'}`}
+                  />
+                  {errors.firstName && <p className="text-red-500 text-sm mt-1">{errors.firstName.message}</p>}
+                </div>
+                
+                <div>
+                  <label htmlFor="edit-lastName" className="block text-sm font-medium text-gray-700 mb-2">
+                    Last Name <span className="text-red-500">*</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    id="edit-lastName" 
+                    {...register('lastName', { required: 'Last Name is required' })} 
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 ${errors.lastName ? 'border-red-300' : 'border-gray-300'}`}
+                  />
+                  {errors.lastName && <p className="text-red-500 text-sm mt-1">{errors.lastName.message}</p>}
+                </div>
+                
+                <div>
+                  <label htmlFor="edit-gender" className="block text-sm font-medium text-gray-700 mb-2">
+                    Gender <span className="text-red-500">*</span>
+                  </label>
+                  <select 
+                    id="edit-gender" 
+                    {...register('gender', { required: 'Gender is required' })} 
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 ${errors.gender ? 'border-red-300' : 'border-gray-300'}`}
+                  >
+                    <option value="">Select Gender</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                  </select>
+                  {errors.gender && <p className="text-red-500 text-sm mt-1">{errors.gender.message}</p>}
+                </div>
+                
+                <div>
+                  <label htmlFor="edit-contactNumber" className="block text-sm font-medium text-gray-700 mb-2">Contact Number</label>
+                  <input 
+                    type="tel" 
+                    id="edit-contactNumber" 
+                    {...register('contactNumber')} 
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Medical Information */}
+            <div className="bg-blue-50 p-6 rounded-lg">
+              <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                <Stethoscope className="w-5 h-5 mr-2 text-blue-600" />
+                Medical Information
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label htmlFor="edit-diagnosis" className="block text-sm font-medium text-gray-700 mb-2">
+                    Diagnosis <span className="text-red-500">*</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    id="edit-diagnosis" 
+                    {...register('diagnosis', { required: 'Diagnosis is required' })} 
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 ${errors.diagnosis ? 'border-red-300' : 'border-gray-300'}`}
+                  />
+                  {errors.diagnosis && <p className="text-red-500 text-sm mt-1">{errors.diagnosis.message}</p>}
+                </div>
+                
+                <div>
+                  <label htmlFor="edit-attendingPhysician" className="block text-sm font-medium text-gray-700 mb-2">Attending Physician</label>
+                  <input 
+                    type="text" 
+                    id="edit-attendingPhysician" 
+                    {...register('attendingPhysician')} 
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  />
+                </div>
+                
+                <div>
+                  <label htmlFor="edit-bedNumber" className="block text-sm font-medium text-gray-700 mb-2">Bed Number</label>
+                  <input 
+                    type="text" 
+                    id="edit-bedNumber" 
+                    {...register('bedNumber')} 
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  />
+                </div>
+                
+                <div>
+                  <label htmlFor="edit-patientId" className="block text-sm font-medium text-gray-700 mb-2">Patient ID</label>
+                  <input 
+                    type="text" 
+                    id="edit-patientId" 
+                    {...register('patientId')} 
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-gray-100"
+                    disabled
+                  />
+                </div>
+              </div>
+            </div>
+            
+            {/* Action Buttons */}
+            <div className="flex justify-end space-x-4 pt-6 border-t">
+              <button 
+                type="button" 
+                onClick={onClose} 
+                className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                disabled={isSubmitting}
+              >
+                Cancel
+              </button>
+              <button 
+                type="submit" 
+                className="px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center space-x-2 disabled:opacity-50"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Updating...</span>
+                  </>
+                ) : (
+                  <>
+                    <Edit className="w-4 h-4" />
+                    <span>Update Patient</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        </motion.div>
+      </div>
+    );
+  };
+
   // Delete Confirmation Modal
   const DeletePatientModal = ({ show, patient, onClose, onConfirm }) => {
     const [isDeleting, setIsDeleting] = useState(false);
@@ -897,6 +1086,16 @@ export default function PatientOverview({ detailed = false }) {
         show={isAdmissionModalOpen}
         onClose={() => setIsAdmissionModalOpen(false)}
         onSubmit={handleAdmitPatient}
+      />
+      
+      <EditPatientModal 
+        show={showEditModal} 
+        patient={editingPatient}
+        onClose={() => {
+          setShowEditModal(false);
+          setEditingPatient(null);
+        }} 
+        onSubmit={handleUpdatePatient} 
       />
       
       <DeletePatientModal 
