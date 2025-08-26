@@ -16,10 +16,14 @@ import {
   Activity,
   TrendingUp,
   Brain,
-  X
+  X,
+  User,
+  Stethoscope
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '@/lib/api' // Import the API utility
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
 
 export default function PatientsPage() {
   const [patients, setPatients] = useState([])
@@ -32,27 +36,39 @@ export default function PatientsPage() {
   const [riskAnalysis, setRiskAnalysis] = useState(null)
   const [analyzing, setAnalyzing] = useState(false)
   const [showAddPatientModal, setShowAddPatientModal] = useState(false)
+  const [editingPatient, setEditingPatient] = useState(null)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [patientToDelete, setPatientToDelete] = useState(null)
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm()
 
   const fetchPatients = async () => {
     try {
       setLoading(true);
-      console.log('Fetching patients from API...');
+      console.log('🔄 Fetching patients from API...');
       
       const response = await api.get('/patients');
-      console.log('Patients fetched successfully:', response);
+      console.log('📊 Raw API response:', response);
       
       // Handle both direct array and object with data property
       const patientsData = Array.isArray(response) ? response : response.data || response;
+      console.log('👥 Processed patients data:', patientsData);
+      console.log('📈 Number of patients:', patientsData.length);
+      
+      if (!Array.isArray(patientsData)) {
+        console.error('❌ Invalid patients data format:', typeof patientsData);
+        throw new Error('Invalid data format received from server');
+      }
       
       setPatients(patientsData);
       setFilteredPatients(patientsData);
       
-      toast.success(`Loaded ${patientsData.length} patients`);
+      console.log('✅ Patients state updated successfully');
+      // Removed the loaded amount toast message as requested
     } catch (error) {
-      console.error('Error fetching patients:', error);
-      toast.error('Failed to fetch patients. Using offline mode.');
+      console.error('❌ Error fetching patients:', error);
+      toast.error('❌ Failed to fetch patients. Please check your connection.');
       
       // Fallback to empty array if fetch fails
       setPatients([]);
@@ -64,7 +80,6 @@ export default function PatientsPage() {
 
   useEffect(() => {
     fetchPatients()
-    toast.success('Patient management loaded')
   }, [])
 
   useEffect(() => {
@@ -76,10 +91,10 @@ export default function PatientsPage() {
 
     if (searchTerm) {
       filtered = filtered.filter(patient => 
-        patient.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        patient.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        patient.patientId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        patient.diagnosis.toLowerCase().includes(searchTerm.toLowerCase())
+        patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        patient.patientId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        patient.diagnosis.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        patient.attendingPhysician?.toLowerCase().includes(searchTerm.toLowerCase())
       )
     }
 
@@ -111,7 +126,14 @@ export default function PatientsPage() {
 
   const handleAddPatient = async (data) => {
     try {
-      console.log('Attempting to add patient with data:', data);
+      console.log('🚀 Starting patient creation...');
+      console.log('📝 Form data received:', data);
+      
+      // Validate only essential fields
+      if (!data.firstName || !data.lastName || !data.gender || !data.diagnosis) {
+        toast.error('❌ Please fill in all required fields (First Name, Last Name, Gender, Diagnosis)');
+        return;
+      }
       
       // Add loading state
       toast.loading('Adding patient...', { id: 'add-patient' });
@@ -119,41 +141,58 @@ export default function PatientsPage() {
       // Transform the data to match backend expectations
       const transformedData = {
         name: `${data.firstName} ${data.lastName}`.trim(),
-        age: data.dateOfBirth ? calculateAge(data.dateOfBirth) : 25, // Default age if calculation fails
+        age: data.dateOfBirth ? calculateAge(data.dateOfBirth) : 25,
         gender: data.gender,
         diagnosis: data.diagnosis,
-        bedNumber: data.bedNumber,
-        attendingPhysician: data.admittingPhysician,
-        patientId: data.patientId,
-        contactNumber: data.contactNumber
+        bedNumber: data.bedNumber || `BED-${Date.now()}`,
+        attendingPhysician: data.admittingPhysician || 'Not Assigned',
+        patientId: data.patientId || `PAT-${Date.now()}`,
+        contactNumber: data.contactNumber || ''
       };
       
-      console.log('Transformed data for backend:', transformedData);
+      console.log('🔄 Transformed data for API:', transformedData);
+      console.log('🌐 API URL:', `${API_BASE_URL}/patients`);
+      
+      console.log('🔄 Patients state before API call:', patients.length);
       
       const response = await api.post('/patients', transformedData);
-      console.log('Patient added successfully:', response);
+      console.log('✅ API Response received:', response);
       
       // Success notification
-      toast.success(`Patient ${transformedData.name} added successfully!`, { 
+      toast.success(`🎉 Patient ${transformedData.name} added successfully!`, { 
         id: 'add-patient',
-        duration: 4000 
+        duration: 5000 
       });
       
       setShowAddPatientModal(false);
-      reset(); // Clear form fields
-      fetchPatients(); // Refresh patient list
+      
+      // Refresh patient list immediately after successful API call
+      console.log('🔄 Refreshing patient list...');
+      await fetchPatients();
+      console.log('🔄 Patients state after refresh:', patients.length);
+      
+      console.log('✅ Patient creation completed successfully!');
     } catch (error) {
-      console.error('Error adding patient:', error);
+      console.error('❌ Error adding patient:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        stack: error.stack
+      });
       
       // Error notification with details
       const errorMessage = error.response?.data?.error?.message || 
                           error.message || 
                           'Failed to add patient. Please try again.';
       
-      toast.error(errorMessage, { 
+      toast.error(`❌ ${errorMessage}`, { 
         id: 'add-patient',
-        duration: 6000 
+        duration: 8000 
       });
+      
+      // Make sure we don't update the patient list on error
+      console.log('❌ API call failed, not updating patient list');
     }
   }
 
@@ -171,6 +210,81 @@ export default function PatientsPage() {
     return Math.max(0, age);
   }
 
+  // Handler functions for patient actions
+  const handleViewPatient = (patient) => {
+    setSelectedPatient(patient);
+    // You can implement a view modal here
+    toast.success(`Viewing details for ${patient.name}`);
+  }
+
+  const handleEditPatient = (patient) => {
+    setEditingPatient(patient);
+    setShowEditModal(true);
+  }
+
+  const handleDeletePatient = (patient) => {
+    setPatientToDelete(patient);
+    setShowDeleteModal(true);
+  }
+
+  const confirmDeletePatient = async () => {
+    try {
+      toast.loading('Deleting patient...', { id: 'delete-patient' });
+      
+      await api.delete(`/patients/${patientToDelete._id}`);
+      
+      toast.success(`Patient ${patientToDelete.name} deleted successfully!`, { 
+        id: 'delete-patient',
+        duration: 5000 
+      });
+      
+      setShowDeleteModal(false);
+      setPatientToDelete(null);
+      
+      // Refresh patient list
+      await fetchPatients();
+    } catch (error) {
+      console.error('❌ Error deleting patient:', error);
+      const errorMessage = error.response?.data?.error?.message || 
+                          error.message || 
+                          'Failed to delete patient. Please try again.';
+      
+      toast.error(`❌ ${errorMessage}`, { 
+        id: 'delete-patient',
+        duration: 8000 
+      });
+    }
+  }
+
+  const handleUpdatePatient = async (updatedData) => {
+    try {
+      toast.loading('Updating patient...', { id: 'update-patient' });
+      
+      const response = await api.put(`/patients/${editingPatient._id}`, updatedData);
+      
+      toast.success(`Patient ${updatedData.name} updated successfully!`, { 
+        id: 'update-patient',
+        duration: 5000 
+      });
+      
+      setShowEditModal(false);
+      setEditingPatient(null);
+      
+      // Refresh patient list
+      await fetchPatients();
+    } catch (error) {
+      console.error('❌ Error updating patient:', error);
+      const errorMessage = error.response?.data?.error?.message || 
+                          error.message || 
+                          'Failed to update patient. Please try again.';
+      
+      toast.error(`❌ ${errorMessage}`, { 
+        id: 'update-patient',
+        duration: 8000 
+      });
+    }
+  }
+
   const PatientCard = ({ patient }) => (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -181,80 +295,49 @@ export default function PatientsPage() {
         <div className="flex-1">
           <div className="flex items-center space-x-3 mb-3">
             <h3 className="text-lg font-semibold text-gray-900">
-              {patient.firstName} {patient.lastName}
+              {patient.name}
             </h3>
             <span className="text-sm text-gray-500">#{patient.patientId}</span>
-            {/* Patient status is not directly available in the fetched patient object */}
-            {/* <span className={getStatusColor(patient.status)}>
+            <span className={getStatusColor(patient.status)}>
               {patient.status.charAt(0).toUpperCase() + patient.status.slice(1)}
-            </span> */}
+            </span>
           </div>
           
-          {/* Vital signs are not directly available in the fetched patient object */}
-          {/* <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-            <div className="text-center">
-              <div className="flex items-center justify-center mb-1">
-                <Heart className="w-4 h-4 text-red-500 mr-1" />
-                <span className="text-sm font-medium">{patient.vitalSigns.heartRate}</span>
-              </div>
-              <span className="text-xs text-gray-500">BPM</span>
-            </div>
-            
-            <div className="text-center">
-              <div className="flex items-center justify-center mb-1">
-                <Activity className="w-4 h-4 text-blue-500 mr-1" />
-                <span className="text-sm font-medium">{patient.vitalSigns.bloodPressure.systolic}/{patient.vitalSigns.bloodPressure.diastolic}</span>
-              </div>
-              <span className="text-xs text-gray-500">mmHg</span>
-            </div>
-            
-            <div className="text-center">
-              <div className="flex items-center justify-center mb-1">
-                <Thermometer className="w-4 h-4 text-orange-500 mr-1" />
-                <span className="text-sm font-medium">{patient.vitalSigns.temperature}°C</span>
-              </div>
-              <span className="text-xs text-gray-500">Temp</span>
-            </div>
-            
-            <div className="text-center">
-              <div className="flex items-center justify-center mb-1">
-                <Droplets className="w-4 h-4 text-cyan-500 mr-1" />
-                <span className="text-sm font-medium">{patient.vitalSigns.oxygenSaturation}%</span>
-              </div>
-              <span className="text-xs text-gray-500">SpO2</span>
-            </div>
-          </div> */}
-          
-          <div className="flex items-center justify-between text-sm text-gray-600">
+          <div className="flex items-center justify-between text-sm text-gray-600 mb-4">
             <span>Bed {patient.bedNumber} • {patient.diagnosis}</span>
-            {/* <span>LOS: {patient.lengthOfStay} days</span> */}
+            <span className="text-gray-500">Age: {patient.age}</span>
+          </div>
+          
+          <div className="text-sm text-gray-600 mb-2">
+            <p><strong>Attending Physician:</strong> {patient.attendingPhysician}</p>
+            {patient.contactNumber && (
+              <p><strong>Contact:</strong> {patient.contactNumber}</p>
+            )}
           </div>
         </div>
         
         <div className="ml-4 flex flex-col items-end space-y-2">
-          {/* Risk score and level are not directly available in the fetched patient object */}
-          {/* <div className="text-right">
-            <div className={`text-2xl font-bold ${getRiskColor(patient.riskLevel)}`}>
-              {patient.riskScore}
-            </div>
-            <div className={`text-xs font-medium ${getRiskColor(patient.riskLevel)}`}>
-              {patient.riskLevel.toUpperCase()} RISK
-            </div>
-          </div> */}
-          
           <div className="flex space-x-2">
-            {/* <button
-              onClick={() => analyzePatientRisk(patient)}
-              className="p-2 bg-primary-50 hover:bg-primary-100 rounded-lg transition-colors duration-200"
-              title="AI Risk Analysis"
+            <button 
+              onClick={() => handleViewPatient(patient)}
+              className="p-2 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors duration-200"
+              title="View Patient Details"
             >
-              <Brain className="w-4 h-4 text-primary-600" />
-            </button> */}
-            <button className="p-2 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors duration-200">
-              <Eye className="w-4 h-4 text-gray-600" />
+              <Eye className="w-4 h-4 text-blue-600" />
             </button>
-            <button className="p-2 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors duration-200">
-              <Edit className="w-4 h-4 text-gray-600" />
+            <button 
+              onClick={() => handleEditPatient(patient)}
+              className="p-2 bg-green-50 hover:bg-green-100 rounded-lg transition-colors duration-200"
+              title="Edit Patient"
+            >
+              <Edit className="w-4 h-4 text-green-600" />
+            </button>
+            <button 
+              onClick={() => handleDeletePatient(patient)}
+              className="p-2 bg-red-50 hover:bg-red-100 rounded-lg transition-colors duration-200"
+              title="Delete Patient"
+            >
+              <X className="w-4 h-4 text-red-600" />
             </button>
           </div>
         </div>
@@ -361,13 +444,25 @@ export default function PatientsPage() {
   )
 
   const AddPatientModal = ({ show, onClose, onSubmit }) => {
-    const { register, handleSubmit, reset, formState: { errors } } = useForm();
+    const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm();
   
     useEffect(() => {
       if (!show) {
         reset();
       }
     }, [show, reset]);
+
+    const handleFormSubmit = async (data) => {
+      console.log('🎯 Form submitted with data:', data);
+      
+      try {
+        await onSubmit(data);
+        reset();
+      } catch (error) {
+        console.error('❌ Error in form submission:', error);
+        toast.error(`❌ Form submission failed: ${error.message}`);
+      }
+    };
   
     if (!show) return null;
   
@@ -376,74 +471,467 @@ export default function PatientsPage() {
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="bg-white rounded-xl p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+          className="bg-white rounded-xl p-8 max-w-4xl w-full mx-4 max-h-[95vh] overflow-y-auto shadow-2xl"
         >
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">Add New Patient</h2>
+          <div className="flex items-center justify-between mb-8">
+            <h2 className="text-3xl font-bold text-gray-900 flex items-center">
+              <Plus className="w-8 h-8 mr-3 text-primary-600" />
+              Add New Patient
+            </h2>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600"
+              className="text-gray-400 hover:text-gray-600 p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <X className="w-6 h-6" />
             </button>
           </div>
           
-          <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="patientId" className="form-label">Patient ID</label>
-              <input type="text" id="patientId" {...register('patientId', { required: 'Patient ID is required' })} className="input-field" />
-              {errors.patientId && <p className="text-red-500 text-sm mt-1">{errors.patientId.message}</p>}
+          <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-8">
+            {/* Personal Information Section */}
+            <div className="bg-gray-50 p-6 rounded-lg">
+              <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                <User className="w-5 h-5 mr-2 text-primary-600" />
+                Personal Information
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div>
+                  <label htmlFor="firstName" className="form-label">
+                    First Name <span className="text-red-500">*</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    id="firstName" 
+                    {...register('firstName', { required: 'First Name is required' })} 
+                    className={`input-field ${errors.firstName ? 'border-red-300' : ''}`}
+                    placeholder="Enter first name"
+                  />
+                  {errors.firstName && <p className="text-red-500 text-sm mt-1">{errors.firstName.message}</p>}
+                </div>
+                
+                <div>
+                  <label htmlFor="lastName" className="form-label">
+                    Last Name <span className="text-red-500">*</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    id="lastName" 
+                    {...register('lastName', { required: 'Last Name is required' })} 
+                    className={`input-field ${errors.lastName ? 'border-red-300' : ''}`}
+                    placeholder="Enter last name"
+                  />
+                  {errors.lastName && <p className="text-red-500 text-sm mt-1">{errors.lastName.message}</p>}
+                </div>
+                
+                <div>
+                  <label htmlFor="dateOfBirth" className="form-label">
+                    Date of Birth <span className="text-red-500">*</span>
+                  </label>
+                  <input 
+                    type="date" 
+                    id="dateOfBirth" 
+                    {...register('dateOfBirth', { required: 'Date of Birth is required' })} 
+                    className={`input-field ${errors.dateOfBirth ? 'border-red-300' : ''}`}
+                  />
+                  {errors.dateOfBirth && <p className="text-red-500 text-sm mt-1">{errors.dateOfBirth.message}</p>}
+                </div>
+                
+                <div>
+                  <label htmlFor="gender" className="form-label">
+                    Gender <span className="text-red-500">*</span>
+                  </label>
+                  <select 
+                    id="gender" 
+                    {...register('gender', { required: 'Gender is required' })} 
+                    className={`input-field ${errors.gender ? 'border-red-300' : ''}`}
+                  >
+                    <option value="">Select Gender</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                  </select>
+                  {errors.gender && <p className="text-red-500 text-sm mt-1">{errors.gender.message}</p>}
+                </div>
+                
+                <div>
+                  <label htmlFor="contactNumber" className="form-label">Contact Number</label>
+                  <input 
+                    type="tel" 
+                    id="contactNumber" 
+                    {...register('contactNumber')} 
+                    className="input-field"
+                    placeholder="Enter contact number"
+                  />
+                </div>
+                
+                <div>
+                  <label htmlFor="patientId" className="form-label">Patient ID</label>
+                  <input 
+                    type="text" 
+                    id="patientId" 
+                    {...register('patientId')} 
+                    className="input-field" 
+                    placeholder="Auto-generated if empty"
+                  />
+                </div>
+              </div>
             </div>
-            <div>
-              <label htmlFor="firstName" className="form-label">First Name</label>
-              <input type="text" id="firstName" {...register('firstName', { required: 'First Name is required' })} className="input-field" />
-              {errors.firstName && <p className="text-red-500 text-sm mt-1">{errors.firstName.message}</p>}
-            </div>
-            <div>
-              <label htmlFor="lastName" className="form-label">Last Name</label>
-              <input type="text" id="lastName" {...register('lastName', { required: 'Last Name is required' })} className="input-field" />
-              {errors.lastName && <p className="text-red-500 text-sm mt-1">{errors.lastName.message}</p>}
-            </div>
-            <div>
-              <label htmlFor="dateOfBirth" className="form-label">Date of Birth</label>
-              <input type="date" id="dateOfBirth" {...register('dateOfBirth', { required: 'Date of Birth is required' })} className="input-field" />
-              {errors.dateOfBirth && <p className="text-red-500 text-sm mt-1">{errors.dateOfBirth.message}</p>}
-            </div>
-            <div>
-              <label htmlFor="gender" className="form-label">Gender</label>
-              <select id="gender" {...register('gender', { required: 'Gender is required' })} className="input-field">
-                <option value="">Select Gender</option>
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-                <option value="other">Other</option>
-              </select>
-              {errors.gender && <p className="text-red-500 text-sm mt-1">{errors.gender.message}</p>}
-            </div>
-            <div>
-              <label htmlFor="contactNumber" className="form-label">Contact Number</label>
-              <input type="text" id="contactNumber" {...register('contactNumber')} className="input-field" />
-            </div>
-            <div>
-              <label htmlFor="diagnosis" className="form-label">Diagnosis</label>
-              <input type="text" id="diagnosis" {...register('diagnosis', { required: 'Diagnosis is required' })} className="input-field" />
-              {errors.diagnosis && <p className="text-red-500 text-sm mt-1">{errors.diagnosis.message}</p>}
-            </div>
-            <div>
-              <label htmlFor="admittingPhysician" className="form-label">Admitting Physician</label>
-              <input type="text" id="admittingPhysician" {...register('admittingPhysician', { required: 'Admitting Physician is required' })} className="input-field" />
-              {errors.admittingPhysician && <p className="text-red-500 text-sm mt-1">{errors.admittingPhysician.message}</p>}
-            </div>
-            <div>
-              <label htmlFor="bedNumber" className="form-label">Bed Number</label>
-              <input type="text" id="bedNumber" {...register('bedNumber', { required: 'Bed Number is required' })} className="input-field" />
-              {errors.bedNumber && <p className="text-red-500 text-sm mt-1">{errors.bedNumber.message}</p>}
+
+            {/* Medical Information Section */}
+            <div className="bg-blue-50 p-6 rounded-lg">
+              <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                <Stethoscope className="w-5 h-5 mr-2 text-blue-600" />
+                Medical Information
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label htmlFor="diagnosis" className="form-label">
+                    Diagnosis <span className="text-red-500">*</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    id="diagnosis" 
+                    {...register('diagnosis', { required: 'Diagnosis is required' })} 
+                    className={`input-field ${errors.diagnosis ? 'border-red-300' : ''}`}
+                    placeholder="Enter primary diagnosis"
+                  />
+                  {errors.diagnosis && <p className="text-red-500 text-sm mt-1">{errors.diagnosis.message}</p>}
+                </div>
+                
+                <div>
+                  <label htmlFor="admittingPhysician" className="form-label">Attending Physician</label>
+                  <input 
+                    type="text" 
+                    id="admittingPhysician" 
+                    {...register('admittingPhysician')} 
+                    className="input-field" 
+                    placeholder="Will be assigned if empty"
+                  />
+                </div>
+                
+                <div>
+                  <label htmlFor="bedNumber" className="form-label">Bed Number</label>
+                  <input 
+                    type="text" 
+                    id="bedNumber" 
+                    {...register('bedNumber')} 
+                    className="input-field" 
+                    placeholder="Auto-assigned if empty"
+                  />
+                </div>
+                
+                <div>
+                  <label htmlFor="status" className="form-label">Initial Status</label>
+                  <select 
+                    id="status" 
+                    {...register('status')} 
+                    className="input-field"
+                  >
+                    <option value="observation">Under Observation</option>
+                    <option value="stable">Stable</option>
+                    <option value="critical">Critical</option>
+                  </select>
+                </div>
+              </div>
             </div>
             
-            <div className="md:col-span-2 flex justify-end space-x-2 mt-4">
-              <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
-              <button type="submit" className="btn-primary">Add Patient</button>
+            {/* Action Buttons */}
+            <div className="flex justify-end space-x-4 pt-6 border-t">
+              <button 
+                type="button" 
+                onClick={onClose} 
+                className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                disabled={isSubmitting}
+              >
+                Cancel
+              </button>
+              <button 
+                type="submit" 
+                className="px-8 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium flex items-center space-x-2 disabled:opacity-50"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Adding...</span>
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4" />
+                    <span>Add Patient</span>
+                  </>
+                )}
+              </button>
             </div>
           </form>
+        </motion.div>
+      </div>
+    );
+  };
+
+  // Edit Patient Modal
+  const EditPatientModal = ({ show, patient, onClose, onSubmit }) => {
+    const { register, handleSubmit, reset, setValue, formState: { errors, isSubmitting } } = useForm();
+  
+    useEffect(() => {
+      if (show && patient) {
+        // Pre-populate form with patient data
+        setValue('firstName', patient.name.split(' ')[0]);
+        setValue('lastName', patient.name.split(' ').slice(1).join(' '));
+        setValue('gender', patient.gender);
+        setValue('diagnosis', patient.diagnosis);
+        setValue('attendingPhysician', patient.attendingPhysician);
+        setValue('bedNumber', patient.bedNumber);
+        setValue('contactNumber', patient.contactNumber);
+        setValue('patientId', patient.patientId);
+      } else {
+        reset();
+      }
+    }, [show, patient, reset, setValue]);
+
+    const handleFormSubmit = async (data) => {
+      try {
+        await onSubmit(data);
+        reset();
+      } catch (error) {
+        console.error('❌ Error in edit form submission:', error);
+        toast.error(`❌ Edit failed: ${error.message}`);
+      }
+    };
+  
+    if (!show || !patient) return null;
+  
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-white rounded-xl p-8 max-w-4xl w-full mx-4 max-h-[95vh] overflow-y-auto shadow-2xl"
+        >
+          <div className="flex items-center justify-between mb-8">
+            <h2 className="text-3xl font-bold text-gray-900 flex items-center">
+              <Edit className="w-8 h-8 mr-3 text-green-600" />
+              Edit Patient
+            </h2>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+          
+          <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-8">
+            {/* Personal Information Section */}
+            <div className="bg-green-50 p-6 rounded-lg">
+              <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                <User className="w-5 h-5 mr-2 text-green-600" />
+                Personal Information
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div>
+                  <label htmlFor="firstName" className="form-label">
+                    First Name <span className="text-red-500">*</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    id="firstName" 
+                    {...register('firstName', { required: 'First Name is required' })} 
+                    className={`input-field ${errors.firstName ? 'border-red-300' : ''}`}
+                  />
+                  {errors.firstName && <p className="text-red-500 text-sm mt-1">{errors.firstName.message}</p>}
+                </div>
+                
+                <div>
+                  <label htmlFor="lastName" className="form-label">
+                    Last Name <span className="text-red-500">*</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    id="lastName" 
+                    {...register('lastName', { required: 'Last Name is required' })} 
+                    className={`input-field ${errors.lastName ? 'border-red-300' : ''}`}
+                  />
+                  {errors.lastName && <p className="text-red-500 text-sm mt-1">{errors.lastName.message}</p>}
+                </div>
+                
+                <div>
+                  <label htmlFor="gender" className="form-label">
+                    Gender <span className="text-red-500">*</span>
+                  </label>
+                  <select 
+                    id="gender" 
+                    {...register('gender', { required: 'Gender is required' })} 
+                    className={`input-field ${errors.gender ? 'border-red-300' : ''}`}
+                  >
+                    <option value="">Select Gender</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                  </select>
+                  {errors.gender && <p className="text-red-500 text-sm mt-1">{errors.gender.message}</p>}
+                </div>
+                
+                <div>
+                  <label htmlFor="contactNumber" className="form-label">Contact Number</label>
+                  <input 
+                    type="tel" 
+                    id="contactNumber" 
+                    {...register('contactNumber')} 
+                    className="input-field"
+                  />
+                </div>
+                
+                <div>
+                  <label htmlFor="patientId" className="form-label">Patient ID</label>
+                  <input 
+                    type="text" 
+                    id="patientId" 
+                    {...register('patientId')} 
+                    className="input-field"
+                    disabled
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Medical Information Section */}
+            <div className="bg-blue-50 p-6 rounded-lg">
+              <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                <Stethoscope className="w-5 h-5 mr-2 text-blue-600" />
+                Medical Information
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label htmlFor="diagnosis" className="form-label">
+                    Diagnosis <span className="text-red-500">*</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    id="diagnosis" 
+                    {...register('diagnosis', { required: 'Diagnosis is required' })} 
+                    className={`input-field ${errors.diagnosis ? 'border-red-300' : ''}`}
+                  />
+                  {errors.diagnosis && <p className="text-red-500 text-sm mt-1">{errors.diagnosis.message}</p>}
+                </div>
+                
+                <div>
+                  <label htmlFor="attendingPhysician" className="form-label">Attending Physician</label>
+                  <input 
+                    type="text" 
+                    id="attendingPhysician" 
+                    {...register('attendingPhysician')} 
+                    className="input-field"
+                  />
+                </div>
+                
+                <div>
+                  <label htmlFor="bedNumber" className="form-label">Bed Number</label>
+                  <input 
+                    type="text" 
+                    id="bedNumber" 
+                    {...register('bedNumber')} 
+                    className="input-field"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            {/* Action Buttons */}
+            <div className="flex justify-end space-x-4 pt-6 border-t">
+              <button 
+                type="button" 
+                onClick={onClose} 
+                className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                disabled={isSubmitting}
+              >
+                Cancel
+              </button>
+              <button 
+                type="submit" 
+                className="px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center space-x-2 disabled:opacity-50"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Updating...</span>
+                  </>
+                ) : (
+                  <>
+                    <Edit className="w-4 h-4" />
+                    <span>Update Patient</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        </motion.div>
+      </div>
+    );
+  };
+
+  // Delete Confirmation Modal
+  const DeletePatientModal = ({ show, patient, onClose, onConfirm }) => {
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const handleDelete = async () => {
+      setIsDeleting(true);
+      try {
+        await onConfirm();
+      } finally {
+        setIsDeleting(false);
+      }
+    };
+
+    if (!show || !patient) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-white rounded-xl p-8 max-w-md w-full mx-4 shadow-2xl"
+        >
+          <div className="text-center">
+            <div className="w-16 h-16 mx-auto mb-6 bg-red-100 rounded-full flex items-center justify-center">
+              <AlertTriangle className="w-8 h-8 text-red-600" />
+            </div>
+            
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Delete Patient</h2>
+            
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to delete <strong>{patient.name}</strong>? 
+              This action cannot be undone.
+            </p>
+            
+            <div className="flex justify-center space-x-4">
+              <button 
+                type="button" 
+                onClick={onClose} 
+                className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                disabled={isDeleting}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleDelete}
+                className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium flex items-center space-x-2 disabled:opacity-50"
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <X className="w-4 h-4" />
+                    <span>Delete</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
         </motion.div>
       </div>
     );
@@ -533,10 +1021,31 @@ export default function PatientsPage() {
       </div>
 
       {showRiskModal && <RiskAnalysisModal />}
+      
       <AddPatientModal 
         show={showAddPatientModal} 
         onClose={() => setShowAddPatientModal(false)} 
         onSubmit={handleAddPatient} 
+      />
+      
+      <EditPatientModal 
+        show={showEditModal} 
+        patient={editingPatient}
+        onClose={() => {
+          setShowEditModal(false);
+          setEditingPatient(null);
+        }} 
+        onSubmit={handleUpdatePatient} 
+      />
+      
+      <DeletePatientModal 
+        show={showDeleteModal} 
+        patient={patientToDelete}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setPatientToDelete(null);
+        }} 
+        onConfirm={confirmDeletePatient} 
       />
     </div>
   )

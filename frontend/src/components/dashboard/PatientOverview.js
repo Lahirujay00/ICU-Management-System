@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { motion } from 'framer-motion'
+import { useForm } from 'react-hook-form'
 import { 
   User, 
   Heart, 
@@ -10,8 +12,14 @@ import {
   Clock,
   Bed,
   Stethoscope,
-  Plus
+  Plus,
+  Search,
+  Filter,
+  Eye,
+  Edit,
+  X
 } from 'lucide-react'
+import toast from 'react-hot-toast'
 import PatientCard from '../patients/PatientCard'
 import VitalSignsChart from '../charts/VitalSignsChart'
 import RiskAssessmentPanel from '../patients/RiskAssessmentPanel'
@@ -20,43 +28,98 @@ import { apiClient } from '@/lib/api'
 
 export default function PatientOverview({ detailed = false }) {
   const [patients, setPatients] = useState([])
+  const [filteredPatients, setFilteredPatients] = useState([])
+  const [searchTerm, setSearchTerm] = useState('')
   const [selectedPatient, setSelectedPatient] = useState(null)
   const [isAdmissionModalOpen, setIsAdmissionModalOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [filterStatus, setFilterStatus] = useState('all')
+  const [editingPatient, setEditingPatient] = useState(null)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [patientToDelete, setPatientToDelete] = useState(null)
 
   useEffect(() => {
     loadPatients()
   }, [])
 
+  useEffect(() => {
+    filterPatients()
+  }, [searchTerm, filterStatus, patients])
+
   const loadPatients = async () => {
     try {
-      // Try to load from API first, fallback to mock data
-      const data = await apiClient.getPatients()
-      setPatients(data)
+      console.log('🔄 Loading patients via PatientOverview...');
+      setIsLoading(true);
+      
+      // Load patients from API
+      const data = await apiClient.getPatients();
+      console.log('✅ Patients loaded:', data);
+      
+      // Handle both direct array and object with data property
+      const patientsData = Array.isArray(data) ? data : data.data || data;
+      setPatients(patientsData);
+      
+      // Removed the loaded amount toast message as requested
     } catch (error) {
-      console.log('Using mock data for development')
-      // Use mock data for development
-      const mockData = apiClient.getMockPatients()
-      setPatients(mockData)
+      console.error('❌ Error loading patients:', error);
+      toast.error('Failed to load patients from server');
+      
+      // Use empty array as fallback
+      setPatients([]);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
+  }
+
+  const filterPatients = () => {
+    let filtered = patients
+
+    if (searchTerm) {
+      filtered = filtered.filter(patient => 
+        patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        patient.patientId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        patient.diagnosis.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        patient.attendingPhysician?.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    }
+
+    if (filterStatus !== 'all') {
+      filtered = filtered.filter(patient => patient.status === filterStatus)
+    }
+
+    setFilteredPatients(filtered)
   }
 
   const handleAdmitPatient = async (patientData) => {
     try {
-      // In development, just add to local state
-      const newPatient = {
-        ...patientData,
-        _id: Date.now().toString(),
-        vitalSigns: [],
-        notes: []
-      }
-      setPatients(prev => [...prev, newPatient])
-      setIsAdmissionModalOpen(false)
+      console.log('🚀 Admitting patient via PatientOverview:', patientData);
+      
+      // Show loading toast
+      toast.loading('Admitting patient...', { id: 'admit-patient' });
+      
+      // Make API call to save patient to database
+      const response = await apiClient.createPatient(patientData);
+      console.log('✅ Patient admitted successfully:', response);
+      
+      // Reload patients from database to get the latest data
+      await loadPatients();
+      
+      setIsAdmissionModalOpen(false);
+      
+      // Show success notification
+      toast.success(`Patient ${patientData.name} admitted successfully!`, { 
+        id: 'admit-patient',
+        duration: 5000 
+      });
     } catch (error) {
-      console.error('Error admitting patient:', error)
+      console.error('❌ Error admitting patient:', error);
+      
+      // Show error notification
+      toast.error(`Failed to admit patient: ${error.message}`, { 
+        id: 'admit-patient',
+        duration: 8000 
+      });
     }
   }
 
@@ -75,10 +138,594 @@ export default function PatientOverview({ detailed = false }) {
     }
   }
 
-  const filteredPatients = patients.filter(patient => {
-    if (filterStatus === 'all') return true
-    return patient.status === filterStatus
-  })
+  // Handler functions for patient actions
+  const handleViewPatient = (patient) => {
+    setSelectedPatient(patient);
+    toast.success(`Viewing details for ${patient.name}`);
+  }
+
+  const handleEditPatient = (patient) => {
+    setEditingPatient(patient);
+    setShowEditModal(true);
+  }
+
+  const handleDeletePatient = (patient) => {
+    setPatientToDelete(patient);
+    setShowDeleteModal(true);
+  }
+
+  const confirmDeletePatient = async () => {
+    try {
+      toast.loading('Deleting patient...', { id: 'delete-patient' });
+      
+      await apiClient.deletePatient(patientToDelete._id);
+      
+      toast.success(`Patient ${patientToDelete.name} deleted successfully!`, { 
+        id: 'delete-patient',
+        duration: 5000 
+      });
+      
+      setShowDeleteModal(false);
+      setPatientToDelete(null);
+      
+      // Refresh patient list
+      await loadPatients();
+    } catch (error) {
+      console.error('❌ Error deleting patient:', error);
+      const errorMessage = error.response?.data?.error?.message || 
+                          error.message || 
+                          'Failed to delete patient. Please try again.';
+      
+      toast.error(`❌ ${errorMessage}`, { 
+        id: 'delete-patient',
+        duration: 8000 
+      });
+    }
+  }
+
+  const handleUpdatePatient = async (updatedData) => {
+    try {
+      toast.loading('Updating patient...', { id: 'update-patient' });
+      
+      const response = await apiClient.updatePatient(editingPatient._id, updatedData);
+      
+      toast.success(`Patient ${updatedData.name || editingPatient.name} updated successfully!`, { 
+        id: 'update-patient',
+        duration: 5000 
+      });
+      
+      setShowEditModal(false);
+      setEditingPatient(null);
+      
+      // Refresh patient list
+      await loadPatients();
+    } catch (error) {
+      console.error('❌ Error updating patient:', error);
+      const errorMessage = error.response?.data?.error?.message || 
+                          error.message || 
+                          'Failed to update patient. Please try again.';
+      
+      toast.error(`❌ ${errorMessage}`, { 
+        id: 'update-patient',
+        duration: 8000 
+      });
+    }
+  }
+
+  // Enhanced Patient Card based on your original design but with edit/delete options
+  const EnhancedPatientCard = ({ patient }) => {
+    const [isExpanded, setIsExpanded] = useState(false)
+    const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
+
+    const getStatusColor = (status) => {
+      switch (status) {
+        case 'critical':
+          return 'bg-red-100 text-red-800 border-red-200'
+        case 'stable':
+          return 'bg-green-100 text-green-800 border-green-200'
+        case 'improving':
+          return 'bg-blue-100 text-blue-800 border-blue-200'
+        default:
+          return 'bg-gray-100 text-gray-800 border-gray-200'
+      }
+    }
+
+    const getStatusIcon = (status) => {
+      switch (status) {
+        case 'critical':
+          return <AlertTriangle className="h-4 w-4" />
+        case 'stable':
+          return <Heart className="h-4 w-4" />
+        case 'improving':
+          return <Activity className="h-4 w-4" />
+        default:
+          return <User className="h-4 w-4" />
+      }
+    }
+
+    const handleStatusChange = async (newStatus) => {
+      if (isUpdatingStatus) return
+      
+      setIsUpdatingStatus(true)
+      try {
+        await handleStatusUpdate(patient._id, newStatus)
+      } catch (error) {
+        console.error('Error updating status:', error)
+      } finally {
+        setIsUpdatingStatus(false)
+      }
+    }
+
+    return (
+      <div className="bg-white rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow">
+        <div className="p-4">
+          {/* Header */}
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex items-center space-x-3">
+              <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
+                <User className="h-5 w-5 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900">{patient.name}</h3>
+                <p className="text-sm text-gray-600">ID: {patient.patientId}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(patient.status)} flex items-center space-x-1`}>
+                {getStatusIcon(patient.status)}
+                <span>{patient.status}</span>
+              </div>
+              {/* Enhanced action buttons */}
+              <div className="flex space-x-1">
+                <button 
+                  onClick={() => handleViewPatient(patient)}
+                  className="p-1 bg-blue-50 hover:bg-blue-100 rounded transition-colors"
+                  title="View Patient Details"
+                >
+                  <Eye className="w-4 h-4 text-blue-600" />
+                </button>
+                <button 
+                  onClick={() => handleEditPatient(patient)}
+                  className="p-1 bg-green-50 hover:bg-green-100 rounded transition-colors"
+                  title="Edit Patient"
+                >
+                  <Edit className="w-4 h-4 text-green-600" />
+                </button>
+                <button 
+                  onClick={() => handleDeletePatient(patient)}
+                  className="p-1 bg-red-50 hover:bg-red-100 rounded transition-colors"
+                  title="Delete Patient"
+                >
+                  <X className="w-4 h-4 text-red-600" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Basic Info */}
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <div className="flex items-center space-x-2 text-sm text-gray-600">
+              <Bed className="h-4 w-4" />
+              <span>Bed {patient.bedNumber}</span>
+            </div>
+            <div className="flex items-center space-x-2 text-sm text-gray-600">
+              <Clock className="h-4 w-4" />
+              <span>{patient.admissionDate}</span>
+            </div>
+          </div>
+
+          {/* Additional Patient Info */}
+          <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+            <div className="text-sm text-gray-600 space-y-1">
+              <p><strong>Age:</strong> {patient.age} years</p>
+              <p><strong>Gender:</strong> {patient.gender}</p>
+              <p><strong>Diagnosis:</strong> {patient.diagnosis}</p>
+              {patient.attendingPhysician && (
+                <p><strong>Physician:</strong> {patient.attendingPhysician}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Status Update Section */}
+          <div className="mb-3">
+            <label className="block text-xs font-medium text-gray-700 mb-2">Update Status:</label>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                onClick={() => handleStatusChange('critical')}
+                disabled={isUpdatingStatus || patient.status === 'critical'}
+                className={`px-2 py-1 text-xs rounded border transition-colors ${
+                  patient.status === 'critical'
+                    ? 'bg-red-100 text-red-800 border-red-300 cursor-not-allowed'
+                    : 'bg-white text-red-600 border-red-300 hover:bg-red-50'
+                }`}
+              >
+                Critical
+              </button>
+              <button
+                onClick={() => handleStatusChange('stable')}
+                disabled={isUpdatingStatus || patient.status === 'stable'}
+                className={`px-2 py-1 text-xs rounded border transition-colors ${
+                  patient.status === 'stable'
+                    ? 'bg-green-100 text-green-800 border-green-300 cursor-not-allowed'
+                    : 'bg-white text-green-600 border-green-300 hover:bg-green-50'
+                }`}
+              >
+                Stable
+              </button>
+              <button
+                onClick={() => handleStatusChange('improving')}
+                disabled={isUpdatingStatus || patient.status === 'improving'}
+                className={`px-2 py-1 text-xs rounded border transition-colors ${
+                  patient.status === 'improving'
+                    ? 'bg-blue-100 text-blue-800 border-blue-300 cursor-not-allowed'
+                    : 'bg-white text-blue-600 border-blue-300 hover:bg-blue-50'
+                }`}
+              >
+                Improving
+              </button>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex space-x-2">
+            <button
+              onClick={() => setSelectedPatient(patient)}
+              className="flex-1 bg-blue-600 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
+            >
+              View Details
+            </button>
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="px-3 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+            >
+              {isExpanded ? 'Less' : 'More'}
+            </button>
+          </div>
+
+          {/* Expanded Content */}
+          {isExpanded && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Age:</span>
+                  <span className="font-medium">{patient.age} years</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Gender:</span>
+                  <span className="font-medium">{patient.gender}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Diagnosis:</span>
+                  <span className="font-medium">{patient.diagnosis}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Attending:</span>
+                  <span className="font-medium">{patient.attendingPhysician}</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // Enhanced Add Patient Modal
+  const EnhancedAddPatientModal = ({ show, onClose, onSubmit }) => {
+    const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm();
+  
+    useEffect(() => {
+      if (!show) {
+        reset();
+      }
+    }, [show, reset]);
+
+    const handleFormSubmit = async (data) => {
+      try {
+        // Transform the data to match backend expectations
+        const transformedData = {
+          name: `${data.firstName} ${data.lastName}`.trim(),
+          age: data.dateOfBirth ? calculateAge(data.dateOfBirth) : 25,
+          gender: data.gender,
+          diagnosis: data.diagnosis,
+          bedNumber: data.bedNumber || `BED-${Date.now()}`,
+          attendingPhysician: data.admittingPhysician || 'Not Assigned',
+          patientId: data.patientId || `PAT-${Date.now()}`,
+          contactNumber: data.contactNumber || ''
+        };
+        
+        await onSubmit(transformedData);
+        reset();
+      } catch (error) {
+        console.error('❌ Error in form submission:', error);
+        toast.error(`❌ Form submission failed: ${error.message}`);
+      }
+    };
+
+    // Helper function to calculate age from date of birth
+    const calculateAge = (dateOfBirth) => {
+      const today = new Date();
+      const birthDate = new Date(dateOfBirth);
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      
+      return Math.max(0, age);
+    }
+  
+    if (!show) return null;
+  
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-white rounded-xl p-8 max-w-4xl w-full mx-4 max-h-[95vh] overflow-y-auto shadow-2xl"
+        >
+          <div className="flex items-center justify-between mb-8">
+            <h2 className="text-3xl font-bold text-gray-900 flex items-center">
+              <Plus className="w-8 h-8 mr-3 text-primary-600" />
+              Add New Patient
+            </h2>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+          
+          <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-8">
+            {/* Personal Information Section */}
+            <div className="bg-gray-50 p-6 rounded-lg">
+              <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                <User className="w-5 h-5 mr-2 text-primary-600" />
+                Personal Information
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div>
+                  <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-2">
+                    First Name <span className="text-red-500">*</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    id="firstName" 
+                    {...register('firstName', { required: 'First Name is required' })} 
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.firstName ? 'border-red-300' : 'border-gray-300'}`}
+                    placeholder="Enter first name"
+                  />
+                  {errors.firstName && <p className="text-red-500 text-sm mt-1">{errors.firstName.message}</p>}
+                </div>
+                
+                <div>
+                  <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-2">
+                    Last Name <span className="text-red-500">*</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    id="lastName" 
+                    {...register('lastName', { required: 'Last Name is required' })} 
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.lastName ? 'border-red-300' : 'border-gray-300'}`}
+                    placeholder="Enter last name"
+                  />
+                  {errors.lastName && <p className="text-red-500 text-sm mt-1">{errors.lastName.message}</p>}
+                </div>
+                
+                <div>
+                  <label htmlFor="dateOfBirth" className="block text-sm font-medium text-gray-700 mb-2">
+                    Date of Birth <span className="text-red-500">*</span>
+                  </label>
+                  <input 
+                    type="date" 
+                    id="dateOfBirth" 
+                    {...register('dateOfBirth', { required: 'Date of Birth is required' })} 
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.dateOfBirth ? 'border-red-300' : 'border-gray-300'}`}
+                  />
+                  {errors.dateOfBirth && <p className="text-red-500 text-sm mt-1">{errors.dateOfBirth.message}</p>}
+                </div>
+                
+                <div>
+                  <label htmlFor="gender" className="block text-sm font-medium text-gray-700 mb-2">
+                    Gender <span className="text-red-500">*</span>
+                  </label>
+                  <select 
+                    id="gender" 
+                    {...register('gender', { required: 'Gender is required' })} 
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.gender ? 'border-red-300' : 'border-gray-300'}`}
+                  >
+                    <option value="">Select Gender</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                  </select>
+                  {errors.gender && <p className="text-red-500 text-sm mt-1">{errors.gender.message}</p>}
+                </div>
+                
+                <div>
+                  <label htmlFor="contactNumber" className="block text-sm font-medium text-gray-700 mb-2">Contact Number</label>
+                  <input 
+                    type="tel" 
+                    id="contactNumber" 
+                    {...register('contactNumber')} 
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter contact number"
+                  />
+                </div>
+                
+                <div>
+                  <label htmlFor="patientId" className="block text-sm font-medium text-gray-700 mb-2">Patient ID</label>
+                  <input 
+                    type="text" 
+                    id="patientId" 
+                    {...register('patientId')} 
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                    placeholder="Auto-generated if empty"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Medical Information Section */}
+            <div className="bg-blue-50 p-6 rounded-lg">
+              <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                <Stethoscope className="w-5 h-5 mr-2 text-blue-600" />
+                Medical Information
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label htmlFor="diagnosis" className="block text-sm font-medium text-gray-700 mb-2">
+                    Diagnosis <span className="text-red-500">*</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    id="diagnosis" 
+                    {...register('diagnosis', { required: 'Diagnosis is required' })} 
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.diagnosis ? 'border-red-300' : 'border-gray-300'}`}
+                    placeholder="Enter primary diagnosis"
+                  />
+                  {errors.diagnosis && <p className="text-red-500 text-sm mt-1">{errors.diagnosis.message}</p>}
+                </div>
+                
+                <div>
+                  <label htmlFor="admittingPhysician" className="block text-sm font-medium text-gray-700 mb-2">Attending Physician</label>
+                  <input 
+                    type="text" 
+                    id="admittingPhysician" 
+                    {...register('admittingPhysician')} 
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                    placeholder="Will be assigned if empty"
+                  />
+                </div>
+                
+                <div>
+                  <label htmlFor="bedNumber" className="block text-sm font-medium text-gray-700 mb-2">Bed Number</label>
+                  <input 
+                    type="text" 
+                    id="bedNumber" 
+                    {...register('bedNumber')} 
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                    placeholder="Auto-assigned if empty"
+                  />
+                </div>
+                
+                <div>
+                  <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-2">Initial Status</label>
+                  <select 
+                    id="status" 
+                    {...register('status')} 
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="observation">Under Observation</option>
+                    <option value="stable">Stable</option>
+                    <option value="critical">Critical</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            
+            {/* Action Buttons */}
+            <div className="flex justify-end space-x-4 pt-6 border-t">
+              <button 
+                type="button" 
+                onClick={onClose} 
+                className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                disabled={isSubmitting}
+              >
+                Cancel
+              </button>
+              <button 
+                type="submit" 
+                className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center space-x-2 disabled:opacity-50"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Adding...</span>
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4" />
+                    <span>Add Patient</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        </motion.div>
+      </div>
+    );
+  };
+
+  // Delete Confirmation Modal
+  const DeletePatientModal = ({ show, patient, onClose, onConfirm }) => {
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const handleDelete = async () => {
+      setIsDeleting(true);
+      try {
+        await onConfirm();
+      } finally {
+        setIsDeleting(false);
+      }
+    };
+
+    if (!show || !patient) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-white rounded-xl p-8 max-w-md w-full mx-4 shadow-2xl"
+        >
+          <div className="text-center">
+            <div className="w-16 h-16 mx-auto mb-6 bg-red-100 rounded-full flex items-center justify-center">
+              <AlertTriangle className="w-8 h-8 text-red-600" />
+            </div>
+            
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Delete Patient</h2>
+            
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to delete <strong>{patient.name}</strong>? 
+              This action cannot be undone.
+            </p>
+            
+            <div className="flex justify-center space-x-4">
+              <button 
+                type="button" 
+                onClick={onClose} 
+                className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                disabled={isDeleting}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleDelete}
+                className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium flex items-center space-x-2 disabled:opacity-50"
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <X className="w-4 h-4" />
+                    <span>Delete</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    );
+  };
 
   const criticalPatients = patients.filter(p => p.status === 'critical')
   const stablePatients = patients.filter(p => p.status === 'stable')
@@ -106,6 +753,25 @@ export default function PatientOverview({ detailed = false }) {
         >
           <Plus className="w-4 h-4" />
           Admit Patient
+        </button>
+      </div>
+
+      {/* Search and Filter Controls */}
+      <div className="flex flex-col md:flex-row gap-4 mb-6">
+        <div className="flex-1 relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+          <input
+            type="text"
+            placeholder="Search patients by name, ID, or diagnosis..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+        
+        <button className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
+          <Filter className="w-4 h-4" />
+          <span>More Filters</span>
         </button>
       </div>
 
@@ -196,16 +862,27 @@ export default function PatientOverview({ detailed = false }) {
         </button>
       </div>
 
-      {/* Patient Grid */}
+      {/* Patient Count */}
+      <div className="mb-6">
+        <p className="text-gray-600">
+          Showing {filteredPatients.length} of {patients.length} patients
+        </p>
+      </div>
+
+      {/* Enhanced Patient Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
         {filteredPatients.map((patient) => (
-          <PatientCard
+          <EnhancedPatientCard
             key={patient._id}
             patient={patient}
-            onSelect={() => setSelectedPatient(patient)}
-            onStatusUpdate={handleStatusUpdate}
           />
         ))}
+        
+        {filteredPatients.length === 0 && (
+          <div className="col-span-full text-center py-12">
+            <p className="text-gray-500">No patients found matching your criteria.</p>
+          </div>
+        )}
       </div>
 
       {/* AI Risk Assessment Panel */}
@@ -215,11 +892,21 @@ export default function PatientOverview({ detailed = false }) {
         />
       )}
 
-      {/* Patient Admission Modal */}
-      <PatientAdmissionModal
-        isOpen={isAdmissionModalOpen}
+      {/* Enhanced Modals */}
+      <EnhancedAddPatientModal
+        show={isAdmissionModalOpen}
         onClose={() => setIsAdmissionModalOpen(false)}
-        onAdmit={handleAdmitPatient}
+        onSubmit={handleAdmitPatient}
+      />
+      
+      <DeletePatientModal 
+        show={showDeleteModal} 
+        patient={patientToDelete}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setPatientToDelete(null);
+        }} 
+        onConfirm={confirmDeletePatient} 
       />
     </div>
   )

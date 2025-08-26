@@ -85,7 +85,7 @@ export default function PatientCard({ patient, onStatusUpdate, onSelect }) {
         </div>
 
         {/* Basic Info */}
-        <div className="grid grid-cols-2 gap-3 mb-3">
+        <div className="grid grid-cols-2 gap-3 mb-4">
           <div className="flex items-center space-x-2 text-sm text-gray-600">
             <Bed className="h-4 w-4" />
             <span>Bed {patient.bedNumber}</span>
@@ -96,19 +96,15 @@ export default function PatientCard({ patient, onStatusUpdate, onSelect }) {
           </div>
         </div>
 
-        {/* Vital Signs Summary */}
-        <div className="grid grid-cols-3 gap-2 mb-3">
-          <div className="text-center p-2 bg-red-50 rounded">
-            <div className="text-lg font-semibold text-red-600">{patient.vitalSigns?.heartRate || '--'}</div>
-            <div className="text-xs text-red-500">BPM</div>
-          </div>
-          <div className="text-center p-2 bg-blue-50 rounded">
-            <div className="text-lg font-semibold text-blue-600">{patient.vitalSigns?.bloodPressure || '--'}</div>
-            <div className="text-xs text-blue-500">BP</div>
-          </div>
-          <div className="text-center p-2 bg-green-50 rounded">
-            <div className="text-lg font-semibold text-green-600">{patient.vitalSigns?.oxygenSaturation || '--'}%</div>
-            <div className="text-xs text-green-500">O2</div>
+        {/* Additional Patient Info */}
+        <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+          <div className="text-sm text-gray-600 space-y-1">
+            <p><strong>Age:</strong> {patient.age} years</p>
+            <p><strong>Gender:</strong> {patient.gender}</p>
+            <p><strong>Diagnosis:</strong> {patient.diagnosis}</p>
+            {patient.attendingPhysician && (
+              <p><strong>Physician:</strong> {patient.attendingPhysician}</p>
+            )}
           </div>
         </div>
 
