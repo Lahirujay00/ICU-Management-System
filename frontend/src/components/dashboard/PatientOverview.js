@@ -1213,7 +1213,7 @@ export default function PatientOverview({ detailed = false }) {
             className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
           >
             <Eye className="w-4 h-4" />
-            View Discharge History
+            Discharge History
           </button>
           <button
             onClick={() => setIsAdmissionModalOpen(true)}
