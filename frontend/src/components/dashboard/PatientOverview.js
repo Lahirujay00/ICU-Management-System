@@ -37,7 +37,9 @@ export default function PatientOverview({ detailed = false }) {
   const [editingPatient, setEditingPatient] = useState(null)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [showDischargeModal, setShowDischargeModal] = useState(false)
   const [patientToDelete, setPatientToDelete] = useState(null)
+  const [patientToDischarge, setPatientToDischarge] = useState(null)
 
   useEffect(() => {
     loadPatients()
@@ -58,7 +60,13 @@ export default function PatientOverview({ detailed = false }) {
       
       // Handle both direct array and object with data property
       const patientsData = Array.isArray(data) ? data : data.data || data;
-      setPatients(patientsData);
+      
+      // Filter out discharged patients (only show active patients)
+      const activePatients = patientsData.filter(patient => 
+        patient.status !== 'discharged' && patient.isActive !== false
+      );
+      
+      setPatients(activePatients);
       
       // Removed the loaded amount toast message as requested
     } catch (error) {
@@ -125,16 +133,35 @@ export default function PatientOverview({ detailed = false }) {
 
   const handleStatusUpdate = async (patientId, newStatus) => {
     try {
-      // Update patient status in local state
+      toast.loading('Updating patient status...', { id: 'status-update' });
+      
+      // Update patient status via API
+      const response = await apiClient.updatePatient(patientId, { status: newStatus });
+      console.log('✅ Status updated successfully:', response);
+      
+      // Update local state
       setPatients(prev => 
         prev.map(patient => 
           patient._id === patientId 
             ? { ...patient, status: newStatus }
             : patient
         )
-      )
+      );
+      
+      toast.success(`Patient status updated to ${newStatus}!`, { 
+        id: 'status-update',
+        duration: 3000 
+      });
     } catch (error) {
-      console.error('Error updating patient status:', error)
+      console.error('❌ Error updating patient status:', error);
+      const errorMessage = error.response?.data?.error?.message || 
+                          error.message || 
+                          'Failed to update patient status. Please try again.';
+      
+      toast.error(`❌ ${errorMessage}`, { 
+        id: 'status-update',
+        duration: 5000 
+      });
     }
   }
 
@@ -152,6 +179,71 @@ export default function PatientOverview({ detailed = false }) {
   const handleDeletePatient = (patient) => {
     setPatientToDelete(patient);
     setShowDeleteModal(true);
+  }
+
+  const handleDischargePatient = (patient) => {
+    setPatientToDischarge(patient);
+    setShowDischargeModal(true);
+  }
+
+  const confirmDischargePatient = async (dischargeData) => {
+    try {
+      toast.loading('Processing discharge...', { id: 'discharge-patient' });
+      
+      // Update patient with discharge information
+      const updateData = {
+        status: 'discharged',
+        dischargeDate: new Date().toISOString(),
+        dischargeReason: dischargeData.reason,
+        dischargeNotes: dischargeData.notes || '',
+        isActive: false
+      };
+      
+      await apiClient.updatePatient(patientToDischarge._id, updateData);
+      
+      // Create discharge record
+      const dischargeRecord = {
+        patientId: patientToDischarge._id,
+        patientName: patientToDischarge.name,
+        bedNumber: patientToDischarge.bedNumber,
+        dischargeDate: new Date().toISOString(),
+        dischargeReason: dischargeData.reason,
+        dischargeNotes: dischargeData.notes || '',
+        diagnosis: patientToDischarge.diagnosis,
+        lengthOfStay: patientToDischarge.admissionDate ? 
+          Math.ceil((new Date() - new Date(patientToDischarge.admissionDate)) / (1000 * 60 * 60 * 24)) : 0
+      };
+      
+      // Store discharge record in localStorage for now (in real app, this would go to database)
+      const existingRecords = JSON.parse(localStorage.getItem('dischargeRecords') || '[]');
+      existingRecords.push(dischargeRecord);
+      localStorage.setItem('dischargeRecords', JSON.stringify(existingRecords));
+      
+      const reasonText = dischargeData.reason === 'discharged' ? 'discharged' : 
+                        dischargeData.reason === 'death' ? 'recorded as deceased' :
+                        'transferred';
+      
+      toast.success(`Patient ${patientToDischarge.name} has been ${reasonText} successfully!`, { 
+        id: 'discharge-patient',
+        duration: 5000 
+      });
+      
+      setShowDischargeModal(false);
+      setPatientToDischarge(null);
+      
+      // Refresh patient list to remove discharged patient
+      await loadPatients();
+    } catch (error) {
+      console.error('❌ Error processing discharge:', error);
+      const errorMessage = error.response?.data?.error?.message || 
+                          error.message || 
+                          'Failed to process discharge. Please try again.';
+      
+      toast.error(`❌ ${errorMessage}`, { 
+        id: 'discharge-patient',
+        duration: 8000 
+      });
+    }
   }
 
   const confirmDeletePatient = async () => {
@@ -313,6 +405,17 @@ export default function PatientOverview({ detailed = false }) {
             </div>
           </div>
 
+          {/* Discharge Button */}
+          <div className="mb-3">
+            <button 
+              onClick={() => handleDischargePatient(patient)}
+              className="w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
+              disabled={isUpdatingStatus}
+            >
+              {isUpdatingStatus ? 'Processing...' : 'Discharge Patient'}
+            </button>
+          </div>
+
           {/* Bed Information */}
           <div className="mb-4 p-3 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200">
             <div className="flex items-center justify-between">
@@ -354,7 +457,7 @@ export default function PatientOverview({ detailed = false }) {
                     : 'bg-white text-red-600 border-red-300 hover:bg-red-50'
                 }`}
               >
-                {isUpdatingStatus ? '...' : 'Critical'}
+                {isUpdatingStatus && patient.status === 'critical' ? '...' : 'Critical'}
               </button>
               <button
                 onClick={() => handleStatusChange('stable')}
@@ -365,7 +468,7 @@ export default function PatientOverview({ detailed = false }) {
                     : 'bg-white text-green-600 border-green-300 hover:bg-green-50'
                 }`}
               >
-                {isUpdatingStatus ? '...' : 'Stable'}
+                {isUpdatingStatus && patient.status === 'stable' ? '...' : 'Stable'}
               </button>
               <button
                 onClick={() => handleStatusChange('improving')}
@@ -376,7 +479,7 @@ export default function PatientOverview({ detailed = false }) {
                     : 'bg-white text-blue-600 border-blue-300 hover:bg-blue-50'
                 }`}
               >
-                {isUpdatingStatus ? '...' : 'Improving'}
+                {isUpdatingStatus && patient.status === 'improving' ? '...' : 'Improving'}
               </button>
             </div>
           </div>
@@ -576,14 +679,32 @@ export default function PatientOverview({ detailed = false }) {
                 </div>
                 
                 <div>
-                  <label htmlFor="bedNumber" className="block text-sm font-medium text-gray-700 mb-2">Bed Number</label>
-                  <input 
-                    type="text" 
+                  <label htmlFor="bedNumber" className="block text-sm font-medium text-gray-700 mb-2">
+                    Bed Number <span className="text-red-500">*</span>
+                  </label>
+                  <select 
                     id="bedNumber" 
-                    {...register('bedNumber')} 
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
-                    placeholder="Auto-assigned if empty"
-                  />
+                    {...register('bedNumber', { required: 'Bed number is required' })} 
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.bedNumber ? 'border-red-300' : 'border-gray-300'}`}
+                  >
+                    <option value="">Select Bed</option>
+                    {[...Array(12)].map((_, i) => {
+                      const bedNum = i + 1;
+                      const isOccupied = patients.some(p => 
+                        parseInt(p.bedNumber?.replace(/\D/g, '') || '0') === bedNum
+                      );
+                      return (
+                        <option 
+                          key={bedNum} 
+                          value={bedNum}
+                          disabled={isOccupied}
+                        >
+                          Bed {bedNum} {isOccupied ? '(Occupied)' : '(Available)'}
+                        </option>
+                      );
+                    })}
+                  </select>
+                  {errors.bedNumber && <p className="text-red-500 text-sm mt-1">{errors.bedNumber.message}</p>}
                 </div>
                 
                 <div>
@@ -916,6 +1037,109 @@ export default function PatientOverview({ detailed = false }) {
     );
   };
 
+  // Discharge Modal Component
+  const DischargeModal = ({ show, patient, onClose, onConfirm }) => {
+    const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm();
+
+    useEffect(() => {
+      if (!show) {
+        reset();
+      }
+    }, [show, reset]);
+
+    const handleFormSubmit = async (data) => {
+      await onConfirm(data);
+      reset();
+    };
+
+    if (!show || !patient) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.9 }}
+          className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4"
+        >
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-gray-900">
+                Discharge Patient
+              </h3>
+              <button
+                onClick={onClose}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+              <div className="flex items-center space-x-3">
+                <User className="w-8 h-8 text-blue-600" />
+                <div>
+                  <h4 className="font-semibold text-gray-900">{patient.name}</h4>
+                  <p className="text-sm text-gray-600">Bed {patient.bedNumber} • {patient.diagnosis}</p>
+                </div>
+              </div>
+            </div>
+
+            <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
+              <div>
+                <label htmlFor="reason" className="block text-sm font-medium text-gray-700 mb-2">
+                  Discharge Reason <span className="text-red-500">*</span>
+                </label>
+                <select 
+                  id="reason" 
+                  {...register('reason', { required: 'Discharge reason is required' })} 
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.reason ? 'border-red-300' : 'border-gray-300'}`}
+                >
+                  <option value="">Select Reason</option>
+                  <option value="discharged">Discharged (Recovery)</option>
+                  <option value="transfer">Transfer to Another Facility</option>
+                  <option value="death">Death</option>
+                </select>
+                {errors.reason && <p className="text-red-500 text-sm mt-1">{errors.reason.message}</p>}
+              </div>
+
+              <div>
+                <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-2">
+                  Discharge Notes
+                </label>
+                <textarea 
+                  id="notes" 
+                  {...register('notes')} 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  rows="3"
+                  placeholder="Optional discharge notes..."
+                />
+              </div>
+
+              <div className="flex space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors"
+                  disabled={isSubmitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? 'Processing...' : 'Confirm Discharge'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </motion.div>
+      </div>
+    );
+  };
+
   const criticalPatients = patients.filter(p => p.status === 'critical')
   const stablePatients = patients.filter(p => p.status === 'stable')
   const improvingPatients = patients.filter(p => p.status === 'improving')
@@ -1106,6 +1330,16 @@ export default function PatientOverview({ detailed = false }) {
           setPatientToDelete(null);
         }} 
         onConfirm={confirmDeletePatient} 
+      />
+      
+      <DischargeModal 
+        show={showDischargeModal} 
+        patient={patientToDischarge}
+        onClose={() => {
+          setShowDischargeModal(false);
+          setPatientToDischarge(null);
+        }} 
+        onConfirm={confirmDischargePatient} 
       />
     </div>
   )
