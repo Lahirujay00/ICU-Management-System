@@ -8,14 +8,32 @@ import {
   AlertTriangle, 
   Plus,
   Calendar,
-  UserCheck
+  UserCheck,
+  Edit3,
+  Phone,
+  Mail,
+  Award,
+  Search,
+  Filter,
+  Eye,
+  X,
+  Star,
+  MapPin,
+  Shield
 } from 'lucide-react'
 import { apiClient } from '@/lib/api'
+import { useForm } from 'react-hook-form'
+import toast from 'react-hot-toast'
 
 export default function StaffOverview({ detailed = false }) {
   const [staff, setStaff] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [filterRole, setFilterRole] = useState('all')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [showDetailModal, setShowDetailModal] = useState(false)
+  const [selectedStaff, setSelectedStaff] = useState(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
     loadStaff()
@@ -37,14 +55,102 @@ export default function StaffOverview({ detailed = false }) {
   }
 
   const filteredStaff = staff.filter(member => {
-    if (filterRole === 'all') return true
-    return member.role === filterRole
+    let matches = true
+    
+    if (filterRole !== 'all') {
+      matches = matches && member.role === filterRole
+    }
+    
+    if (searchTerm) {
+      matches = matches && (
+        member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        member.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        member.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        member.employeeId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        member.specialization?.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    }
+    
+    return matches
   })
 
   const onDutyStaff = staff.filter(member => member.isOnDuty)
   const offDutyStaff = staff.filter(member => !member.isOnDuty)
   const doctors = staff.filter(member => member.role === 'doctor')
   const nurses = staff.filter(member => member.role === 'nurse')
+
+  const handleAddStaff = async (staffData) => {
+    setIsSubmitting(true)
+    try {
+      // Add auto-generated employee ID if not provided
+      if (!staffData.employeeId) {
+        const rolePrefix = staffData.role === 'doctor' ? 'DOC' : 
+                          staffData.role === 'nurse' ? 'NUR' :
+                          staffData.role === 'respiratory_therapist' ? 'RT' :
+                          'STF'
+        staffData.employeeId = `${rolePrefix}${String(staff.length + 1).padStart(3, '0')}`
+      }
+
+      const newStaff = {
+        ...staffData,
+        _id: Date.now().toString(),
+        name: `${staffData.firstName} ${staffData.lastName}`,
+        isOnDuty: false,
+        currentShift: 'off',
+        status: 'active',
+        assignedPatients: 0,
+        performanceRating: 3.0,
+        hireDate: new Date().toISOString(),
+        yearsOfService: 0
+      }
+
+      setStaff(prev => [...prev, newStaff])
+      setShowAddModal(false)
+      toast.success(`Staff member ${newStaff.name} added successfully!`)
+    } catch (error) {
+      console.error('Error adding staff:', error)
+      toast.error('Failed to add staff member')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleToggleDutyStatus = async (staffId) => {
+    try {
+      setStaff(prev => prev.map(member => 
+        member._id === staffId 
+          ? { ...member, isOnDuty: !member.isOnDuty, currentShift: !member.isOnDuty ? 'morning' : 'off' }
+          : member
+      ))
+      const member = staff.find(s => s._id === staffId)
+      toast.success(`${member.name} is now ${!member.isOnDuty ? 'on duty' : 'off duty'}`)
+    } catch (error) {
+      console.error('Error updating duty status:', error)
+      toast.error('Failed to update duty status')
+    }
+  }
+
+  const getRoleDisplayName = (role) => {
+    switch (role) {
+      case 'doctor': return 'Doctor'
+      case 'nurse': return 'Nurse'
+      case 'respiratory_therapist': return 'Respiratory Therapist'
+      case 'pharmacist': return 'Pharmacist'
+      case 'technician': return 'Technician'
+      default: return role
+    }
+  }
+
+  const getRoleColor = (role) => {
+    switch (role) {
+      case 'doctor': return 'bg-blue-100 text-blue-800 border-blue-300'
+      case 'nurse': return 'bg-green-100 text-green-800 border-green-300'
+      case 'respiratory_therapist': return 'bg-purple-100 text-purple-800 border-purple-300'
+      case 'pharmacist': return 'bg-orange-100 text-orange-800 border-orange-300'
+      case 'technician': return 'bg-gray-100 text-gray-800 border-gray-300'
+      default: return 'bg-gray-100 text-gray-800 border-gray-300'
+    }
+  }
 
   if (isLoading) {
     return (
@@ -62,7 +168,10 @@ export default function StaffOverview({ detailed = false }) {
           <h2 className="text-2xl font-bold text-gray-900">Staff Overview</h2>
           <p className="text-gray-600">Monitor staff schedules and availability</p>
         </div>
-        <button className="btn-primary flex items-center gap-2">
+        <button 
+          onClick={() => setShowAddModal(true)}
+          className="btn-primary flex items-center gap-2"
+        >
           <Plus className="w-4 h-4" />
           Add Staff Member
         </button>
@@ -111,6 +220,33 @@ export default function StaffOverview({ detailed = false }) {
         </div>
       </div>
 
+      {/* Search and Filter Controls */}
+      <div className="flex flex-col md:flex-row gap-4 mb-6">
+        <div className="flex-1 relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+          <input
+            type="text"
+            placeholder="Search staff by name, ID, or specialization..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+        
+        <select
+          value={filterRole}
+          onChange={(e) => setFilterRole(e.target.value)}
+          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        >
+          <option value="all">All Roles</option>
+          <option value="doctor">Doctors</option>
+          <option value="nurse">Nurses</option>
+          <option value="respiratory_therapist">Respiratory Therapists</option>
+          <option value="pharmacist">Pharmacists</option>
+          <option value="technician">Technicians</option>
+        </select>
+      </div>
+
       {/* Filter Controls */}
       <div className="flex gap-2">
         <button
@@ -143,16 +279,6 @@ export default function StaffOverview({ detailed = false }) {
         >
           Nurses ({nurses.length})
         </button>
-        <button
-          onClick={() => setFilterRole('admin')}
-          className={`px-4 py-2 rounded-lg text-sm font-medium ${
-            filterRole === 'admin' 
-              ? 'bg-red-600 text-white' 
-              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-          }`}
-        >
-          Admin ({staff.filter(s => s.role === 'admin').length})
-        </button>
       </div>
 
       {/* Staff Grid */}
@@ -167,7 +293,7 @@ export default function StaffOverview({ detailed = false }) {
                 </div>
                 <div>
                   <h3 className="font-semibold text-gray-900">{member.name}</h3>
-                  <p className="text-sm text-gray-500 capitalize">{member.role}</p>
+                  <p className="text-sm text-gray-500 capitalize">{getRoleDisplayName(member.role)}</p>
                 </div>
               </div>
               <span className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -182,14 +308,14 @@ export default function StaffOverview({ detailed = false }) {
             {/* Staff Details */}
             <div className="space-y-3 text-sm">
               <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-gray-400" />
+                <MapPin className="w-4 h-4 text-gray-400" />
                 <span className="text-gray-600">Department: {member.department}</span>
               </div>
               
-              {member.shift && (
+              {member.currentShift && (
                 <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-gray-400" />
-                  <span className="text-gray-600">Shift: {member.shift}</span>
+                  <Clock className="w-4 h-4 text-gray-400" />
+                  <span className="text-gray-600">Shift: {member.currentShift}</span>
                 </div>
               )}
 
@@ -199,22 +325,61 @@ export default function StaffOverview({ detailed = false }) {
                   <span className="text-gray-600">Specialization: {member.specialization}</span>
                 </div>
               )}
+
+              {member.assignedPatients !== undefined && (
+                <div className="flex items-center gap-2">
+                  <Users className="w-4 h-4 text-gray-400" />
+                  <span className="text-gray-600">Patients: {member.assignedPatients}</span>
+                </div>
+              )}
+
+              {member.performanceRating && (
+                <div className="flex items-center gap-2">
+                  <Star className="w-4 h-4 text-yellow-400" />
+                  <span className="text-gray-600">Rating: {member.performanceRating}/5</span>
+                </div>
+              )}
             </div>
 
             {/* Staff Actions */}
             <div className="mt-4 pt-4 border-t border-gray-200">
               <div className="flex gap-2">
-                <button className="flex-1 px-3 py-2 text-xs bg-blue-100 text-blue-800 rounded hover:bg-blue-200">
-                  View Schedule
+                <button 
+                  onClick={() => {
+                    setSelectedStaff(member)
+                    setShowDetailModal(true)
+                  }}
+                  className="flex-1 px-3 py-2 text-xs bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
+                >
+                  View Details
                 </button>
-                <button className="flex-1 px-3 py-2 text-xs bg-green-100 text-green-800 rounded hover:bg-green-200">
-                  Contact
+                <button 
+                  onClick={() => handleToggleDutyStatus(member._id)}
+                  className={`flex-1 px-3 py-2 text-xs rounded hover:opacity-80 ${
+                    member.isOnDuty
+                      ? 'bg-red-100 text-red-800'
+                      : 'bg-green-100 text-green-800'
+                  }`}
+                >
+                  {member.isOnDuty ? 'Set Off Duty' : 'Set On Duty'}
                 </button>
               </div>
             </div>
           </div>
         ))}
       </div>
+
+      {filteredStaff.length === 0 && (
+        <div className="text-center py-12">
+          <Users className="mx-auto h-12 w-12 text-gray-400" />
+          <h3 className="mt-2 text-sm font-medium text-gray-900">No staff members found</h3>
+          <p className="mt-1 text-sm text-gray-500">
+            {searchTerm || filterRole !== 'all' 
+              ? 'No staff members match your search criteria.' 
+              : 'Get started by adding a new staff member.'}
+          </p>
+        </div>
+      )}
 
       {/* Quick Actions */}
       <div className="card bg-gray-50">
@@ -249,6 +414,324 @@ export default function StaffOverview({ detailed = false }) {
           </button>
         </div>
       </div>
+
+      {/* Add Staff Modal */}
+      {showAddModal && (
+        <AddStaffModal 
+          onClose={() => setShowAddModal(false)}
+          onSubmit={handleAddStaff}
+          isSubmitting={isSubmitting}
+        />
+      )}
+
+      {/* Staff Detail Modal */}
+      {showDetailModal && selectedStaff && (
+        <StaffDetailModal 
+          staff={selectedStaff}
+          onClose={() => {
+            setShowDetailModal(false)
+            setSelectedStaff(null)
+          }}
+        />
+      )}
     </div>
   )
-} 
+}
+
+// Add Staff Modal Component
+function AddStaffModal({ onClose, onSubmit, isSubmitting }) {
+  const { register, handleSubmit, formState: { errors }, reset } = useForm()
+
+  const submitForm = (data) => {
+    onSubmit(data)
+    reset()
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold text-gray-900">Add New Staff Member</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit(submitForm)} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+              <input
+                type="text"
+                {...register('firstName', { required: 'First name is required' })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+              {errors.firstName && (
+                <p className="text-red-500 text-xs mt-1">{errors.firstName.message}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+              <input
+                type="text"
+                {...register('lastName', { required: 'Last name is required' })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+              {errors.lastName && (
+                <p className="text-red-500 text-xs mt-1">{errors.lastName.message}</p>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Employee ID</label>
+            <input
+              type="text"
+              {...register('employeeId')}
+              placeholder="Auto-generated if empty"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+            <select
+              {...register('role', { required: 'Role is required' })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">Select Role</option>
+              <option value="doctor">Doctor</option>
+              <option value="nurse">Nurse</option>
+              <option value="respiratory_therapist">Respiratory Therapist</option>
+              <option value="pharmacist">Pharmacist</option>
+              <option value="technician">Technician</option>
+            </select>
+            {errors.role && (
+              <p className="text-red-500 text-xs mt-1">{errors.role.message}</p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
+            <input
+              type="text"
+              {...register('department', { required: 'Department is required' })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+            {errors.department && (
+              <p className="text-red-500 text-xs mt-1">{errors.department.message}</p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Specialization</label>
+            <input
+              type="text"
+              {...register('specialization')}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+            <input
+              type="tel"
+              {...register('phone')}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <input
+              type="email"
+              {...register('email')}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          <div className="flex gap-4 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            >
+              {isSubmitting ? 'Adding...' : 'Add Staff'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// Staff Detail Modal Component
+function StaffDetailModal({ staff, onClose }) {
+  const getRoleDisplayName = (role) => {
+    switch (role) {
+      case 'doctor': return 'Doctor'
+      case 'nurse': return 'Nurse'
+      case 'respiratory_therapist': return 'Respiratory Therapist'
+      case 'pharmacist': return 'Pharmacist'
+      case 'technician': return 'Technician'
+      default: return role
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-bold text-gray-900">Staff Details</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        <div className="space-y-6">
+          {/* Basic Info */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
+                  <Users className="w-8 h-8 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">{staff.name}</h3>
+                  <p className="text-gray-600 capitalize">{getRoleDisplayName(staff.role)}</p>
+                  <span className={`inline-block mt-1 px-2 py-1 rounded-full text-xs font-medium ${
+                    staff.isOnDuty 
+                      ? 'bg-green-100 text-green-800 border border-green-300' 
+                      : 'bg-gray-100 text-gray-800 border border-gray-300'
+                  }`}>
+                    {staff.isOnDuty ? 'On Duty' : 'Off Duty'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <Shield className="w-4 h-4 text-gray-400" />
+                  <span className="text-sm text-gray-600">Employee ID: {staff.employeeId}</span>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  <MapPin className="w-4 h-4 text-gray-400" />
+                  <span className="text-sm text-gray-600">Department: {staff.department}</span>
+                </div>
+
+                {staff.specialization && (
+                  <div className="flex items-center gap-3">
+                    <Award className="w-4 h-4 text-gray-400" />
+                    <span className="text-sm text-gray-600">Specialization: {staff.specialization}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h4 className="font-semibold text-gray-900">Contact Information</h4>
+              
+              {staff.phone && (
+                <div className="flex items-center gap-3">
+                  <Phone className="w-4 h-4 text-gray-400" />
+                  <span className="text-sm text-gray-600">{staff.phone}</span>
+                </div>
+              )}
+
+              {staff.email && (
+                <div className="flex items-center gap-3">
+                  <Mail className="w-4 h-4 text-gray-400" />
+                  <span className="text-sm text-gray-600">{staff.email}</span>
+                </div>
+              )}
+
+              {staff.currentShift && (
+                <div className="flex items-center gap-3">
+                  <Clock className="w-4 h-4 text-gray-400" />
+                  <span className="text-sm text-gray-600">Current Shift: {staff.currentShift}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Performance & Stats */}
+          <div className="border-t border-gray-200 pt-6">
+            <h4 className="font-semibold text-gray-900 mb-4">Performance & Statistics</h4>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {staff.performanceRating && (
+                <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Star className="w-4 h-4 text-yellow-500" />
+                    <span className="text-sm font-medium text-yellow-800">Performance Rating</span>
+                  </div>
+                  <p className="text-lg font-bold text-yellow-900">{staff.performanceRating}/5.0</p>
+                </div>
+              )}
+
+              {staff.assignedPatients !== undefined && (
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Users className="w-4 h-4 text-blue-500" />
+                    <span className="text-sm font-medium text-blue-800">Assigned Patients</span>
+                  </div>
+                  <p className="text-lg font-bold text-blue-900">{staff.assignedPatients}</p>
+                </div>
+              )}
+
+              {staff.yearsOfService !== undefined && (
+                <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Calendar className="w-4 h-4 text-green-500" />
+                    <span className="text-sm font-medium text-green-800">Years of Service</span>
+                  </div>
+                  <p className="text-lg font-bold text-green-900">{staff.yearsOfService}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Certifications */}
+          {staff.certifications && staff.certifications.length > 0 && (
+            <div className="border-t border-gray-200 pt-6">
+              <h4 className="font-semibold text-gray-900 mb-4">Certifications</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {staff.certifications.map((cert, index) => (
+                  <div key={index} className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                    <div className="flex items-center gap-2">
+                      <Award className="w-4 h-4 text-blue-600" />
+                      <span className="text-sm font-medium text-gray-900">{cert.name}</span>
+                    </div>
+                    {cert.expiryDate && (
+                      <p className="text-xs text-gray-600 mt-1">
+                        Expires: {new Date(cert.expiryDate).toLocaleDateString()}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="mt-6 pt-4 border-t border-gray-200">
+          <button
+            onClick={onClose}
+            className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
