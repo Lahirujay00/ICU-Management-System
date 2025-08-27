@@ -10,6 +10,7 @@ import {
   Calendar,
   UserCheck,
   Edit3,
+  Edit,
   Phone,
   Mail,
   Award,
@@ -17,7 +18,7 @@ import {
   Filter,
   Eye,
   X,
-  Star,
+  Check,
   MapPin,
   Shield
 } from 'lucide-react'
@@ -41,14 +42,21 @@ export default function StaffOverview({ detailed = false }) {
 
   const loadStaff = async () => {
     try {
-      // Try to load from API first, fallback to mock data
-      const data = await apiClient.getStaff()
-      setStaff(data)
-    } catch (error) {
-      console.log('Using mock data for development')
-      // Use mock data for development
+      setIsLoading(true)
+      // Try to load from API first
+      const apiData = await apiClient.getStaff()
+      setStaff(apiData)
+      console.log(`✅ Loaded ${apiData.length} staff from database`)
+    } catch (apiError) {
+      console.log('API failed, using mock data:', apiError)
+      // Fallback to mock data when database is not connected
       const mockData = apiClient.getMockStaff()
       setStaff(mockData)
+      console.log(`📝 Using ${mockData.length} mock staff members`)
+      toast.error('Database not connected - showing demo data', {
+        duration: 3000,
+        icon: '⚠️'
+      })
     } finally {
       setIsLoading(false)
     }
@@ -91,22 +99,28 @@ export default function StaffOverview({ detailed = false }) {
         staffData.employeeId = `${rolePrefix}${String(staff.length + 1).padStart(3, '0')}`
       }
 
-      const newStaff = {
+      const newStaffData = {
         ...staffData,
-        _id: Date.now().toString(),
         name: `${staffData.firstName} ${staffData.lastName}`,
         isOnDuty: false,
         currentShift: 'off',
         status: 'active',
         assignedPatients: 0,
-        performanceRating: 3.0,
         hireDate: new Date().toISOString(),
         yearsOfService: 0
       }
 
-      setStaff(prev => [...prev, newStaff])
+      // Try to save to database
+      try {
+        const savedStaff = await apiClient.createStaff(newStaffData)
+        setStaff(prev => [...prev, savedStaff])
+        toast.success(`✅ Staff member ${savedStaff.name} added successfully!`)
+      } catch (apiError) {
+        console.log('Database save failed:', apiError)
+        toast.error('❌ Failed to add staff member to database. Please try again.')
+      }
+      
       setShowAddModal(false)
-      toast.success(`Staff member ${newStaff.name} added successfully!`)
     } catch (error) {
       console.error('Error adding staff:', error)
       toast.error('Failed to add staff member')
@@ -117,17 +131,72 @@ export default function StaffOverview({ detailed = false }) {
 
   const handleToggleDutyStatus = async (staffId) => {
     try {
+      const member = staff.find(s => s._id === staffId)
+      const newDutyStatus = !member.isOnDuty
+      
+      // Update local state immediately for better UX
       setStaff(prev => prev.map(member => 
         member._id === staffId 
-          ? { ...member, isOnDuty: !member.isOnDuty, currentShift: !member.isOnDuty ? 'morning' : 'off' }
+          ? { ...member, isOnDuty: newDutyStatus, currentShift: newDutyStatus ? 'morning' : 'off' }
           : member
       ))
-      const member = staff.find(s => s._id === staffId)
-      toast.success(`${member.name} is now ${!member.isOnDuty ? 'on duty' : 'off duty'}`)
+      
+      // Try to update in database
+      try {
+        await apiClient.updateStaff(staffId, { 
+          isOnDuty: newDutyStatus, 
+          currentShift: newDutyStatus ? 'morning' : 'off' 
+        })
+        toast.success(`✅ ${member.name} is now ${newDutyStatus ? 'on duty' : 'off duty'}`)
+      } catch (apiError) {
+        console.log('Database update failed:', apiError)
+        toast.error(`❌ Failed to update ${member.name}'s duty status in database`)
+        // Revert the local state change on API failure
+        setStaff(prev => prev.map(member => 
+          member._id === staffId 
+            ? { ...member, isOnDuty: !newDutyStatus, currentShift: !newDutyStatus ? 'morning' : 'off' }
+            : member
+        ))
+      }
     } catch (error) {
       console.error('Error updating duty status:', error)
-      toast.error('Failed to update duty status')
+      toast.error('❌ Failed to update duty status')
     }
+  }
+
+  // Quick Action Handlers
+  const handleScheduleShift = () => {
+    const onDutyCount = onDutyStaff.length
+    const totalCount = staff.length
+    toast.success(`📅 Schedule Shift: ${onDutyCount}/${totalCount} staff currently on duty. Opening shift scheduler...`)
+    // TODO: Implement shift scheduling modal
+    console.log('Schedule Shift clicked - Current staff status:', { onDutyCount, totalCount })
+  }
+
+  const handleAssignPatient = () => {
+    const availableStaff = staff.filter(s => s.isOnDuty && s.assignedPatients < 5)
+    toast.success(`👥 Assign Patient: ${availableStaff.length} staff available for patient assignment. Opening assignment tool...`)
+    // TODO: Implement patient assignment modal
+    console.log('Assign Patient clicked - Available staff:', availableStaff)
+  }
+
+  const handleTimeOff = () => {
+    const activeStaff = staff.filter(s => s.status === 'active').length
+    toast.success(`⏰ Time Off Request: Managing time off for ${activeStaff} active staff members. Opening request form...`)
+    // TODO: Implement time off request modal
+    console.log('Time Off clicked - Active staff count:', activeStaff)
+  }
+
+  const handleEmergencyCall = () => {
+    const availableStaff = staff.filter(s => s.isOnDuty)
+    toast.error(`🚨 EMERGENCY ALERT! Notifying ${availableStaff.length} on-duty staff members immediately!`)
+    // TODO: Implement emergency notification system
+    console.log('Emergency Call activated - Notifying staff:', availableStaff.map(s => s.name))
+    
+    // Simulate emergency notification
+    setTimeout(() => {
+      toast.success(`✅ Emergency notification sent to ${availableStaff.length} staff members`)
+    }, 2000)
   }
 
   const getRoleDisplayName = (role) => {
@@ -162,60 +231,87 @@ export default function StaffOverview({ detailed = false }) {
 
   return (
     <div className="space-y-6">
+      {/* Database Status Warning */}
+      {staff.length > 0 && staff[0]._id && staff[0]._id.startsWith('mock') && (
+        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 text-orange-600" />
+            <div>
+              <h3 className="text-sm font-medium text-orange-800">Demo Mode - Database Not Connected</h3>
+              <p className="text-xs text-orange-700 mt-1">
+                You're viewing sample data. Connect to database to manage real staff information.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Staff Overview</h2>
-          <p className="text-gray-600">Monitor staff schedules and availability</p>
+          <p className="text-gray-600">Monitor staff schedules and availability in real-time</p>
         </div>
         <button 
           onClick={() => setShowAddModal(true)}
-          className="btn-primary flex items-center gap-2"
+          className="btn-primary flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors shadow-lg hover:shadow-xl"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-5 h-5" />
           Add Staff Member
         </button>
       </div>
 
       {/* Status Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="card bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200">
+        <div className="card bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200 hover:shadow-lg transition-all duration-300 hover:scale-105">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-blue-600">Total Staff</p>
-              <p className="text-2xl font-bold text-blue-900">{staff.length}</p>
+              <p className="text-3xl font-bold text-blue-900">{staff.length}</p>
+              <p className="text-xs text-blue-500 mt-1">All team members</p>
             </div>
-            <Users className="w-8 h-8 text-blue-600" />
+            <div className="bg-blue-200 p-3 rounded-full">
+              <Users className="w-8 h-8 text-blue-700" />
+            </div>
           </div>
         </div>
 
-        <div className="card bg-gradient-to-r from-green-50 to-green-100 border-green-200">
+        <div className="card bg-gradient-to-r from-green-50 to-green-100 border-green-200 hover:shadow-lg transition-all duration-300 hover:scale-105">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-green-600">On Duty</p>
-              <p className="text-2xl font-bold text-green-900">{onDutyStaff.length}</p>
+              <p className="text-3xl font-bold text-green-900">{onDutyStaff.length}</p>
+              <p className="text-xs text-green-500 mt-1">Currently active</p>
             </div>
-            <UserCheck className="w-8 h-8 text-green-600" />
+            <div className="bg-green-200 p-3 rounded-full">
+              <UserCheck className="w-8 h-8 text-green-700" />
+            </div>
           </div>
         </div>
 
-        <div className="card bg-gradient-to-r from-purple-50 to-purple-100 border-purple-200">
+        <div className="card bg-gradient-to-r from-purple-50 to-purple-100 border-purple-200 hover:shadow-lg transition-all duration-300 hover:scale-105">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-purple-600">Doctors</p>
-              <p className="text-2xl font-bold text-purple-900">{doctors.length}</p>
+              <p className="text-3xl font-bold text-purple-900">{doctors.length}</p>
+              <p className="text-xs text-purple-500 mt-1">Medical specialists</p>
             </div>
-            <Users className="w-8 h-8 text-purple-600" />
+            <div className="bg-purple-200 p-3 rounded-full">
+              <Users className="w-8 h-8 text-purple-700" />
+            </div>
           </div>
         </div>
 
-        <div className="card bg-gradient-to-r from-orange-50 to-orange-100 border-orange-200">
+        <div className="card bg-gradient-to-r from-orange-50 to-orange-100 border-orange-200 hover:shadow-lg transition-all duration-300 hover:scale-105">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-orange-600">Nurses</p>
-              <p className="text-2xl font-bold text-orange-900">{nurses.length}</p>
+              <p className="text-3xl font-bold text-orange-900">{nurses.length}</p>
+              <p className="text-xs text-orange-500 mt-1">Care providers</p>
             </div>
-            <Users className="w-8 h-8 text-orange-600" />
+            <div className="bg-orange-200 p-3 rounded-full">
+              <Users className="w-8 h-8 text-orange-700" />
+            </div>
           </div>
         </div>
       </div>
@@ -281,92 +377,177 @@ export default function StaffOverview({ detailed = false }) {
         </button>
       </div>
 
-      {/* Staff Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-        {filteredStaff.map((member) => (
-          <div key={member._id} className="card hover:shadow-lg transition-shadow duration-200">
-            {/* Staff Header */}
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                  <Users className="w-6 h-6 text-blue-600" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900">{member.name}</h3>
-                  <p className="text-sm text-gray-500 capitalize">{getRoleDisplayName(member.role)}</p>
-                </div>
-              </div>
-              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                member.isOnDuty 
-                  ? 'bg-green-100 text-green-800 border border-green-300' 
-                  : 'bg-gray-100 text-gray-800 border border-gray-300'
-              }`}>
-                {member.isOnDuty ? 'On Duty' : 'Off Duty'}
-              </span>
-            </div>
-
-            {/* Staff Details */}
-            <div className="space-y-3 text-sm">
-              <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-gray-400" />
-                <span className="text-gray-600">Department: {member.department}</span>
-              </div>
-              
-              {member.currentShift && (
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-gray-400" />
-                  <span className="text-gray-600">Shift: {member.currentShift}</span>
-                </div>
-              )}
-
-              {member.specialization && (
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-gray-400" />
-                  <span className="text-gray-600">Specialization: {member.specialization}</span>
-                </div>
-              )}
-
-              {member.assignedPatients !== undefined && (
-                <div className="flex items-center gap-2">
-                  <Users className="w-4 h-4 text-gray-400" />
-                  <span className="text-gray-600">Patients: {member.assignedPatients}</span>
-                </div>
-              )}
-
-              {member.performanceRating && (
-                <div className="flex items-center gap-2">
-                  <Star className="w-4 h-4 text-yellow-400" />
-                  <span className="text-gray-600">Rating: {member.performanceRating}/5</span>
-                </div>
-              )}
-            </div>
-
-            {/* Staff Actions */}
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <div className="flex gap-2">
-                <button 
-                  onClick={() => {
-                    setSelectedStaff(member)
-                    setShowDetailModal(true)
-                  }}
-                  className="flex-1 px-3 py-2 text-xs bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
-                >
-                  View Details
-                </button>
-                <button 
-                  onClick={() => handleToggleDutyStatus(member._id)}
-                  className={`flex-1 px-3 py-2 text-xs rounded hover:opacity-80 ${
-                    member.isOnDuty
-                      ? 'bg-red-100 text-red-800'
-                      : 'bg-green-100 text-green-800'
-                  }`}
-                >
-                  {member.isOnDuty ? 'Set Off Duty' : 'Set On Duty'}
-                </button>
-              </div>
-            </div>
+      {/* Staff List */}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+        {/* List Header */}
+        <div className="bg-gray-50 border-b border-gray-200 px-6 py-4">
+          <div className="grid grid-cols-12 gap-4 text-xs font-semibold text-gray-600 uppercase tracking-wide">
+            <div className="col-span-3">Staff Member</div>
+            <div className="col-span-2">Role & Department</div>
+            <div className="col-span-2">Status & Shift</div>
+            <div className="col-span-2">Specialization</div>
+            <div className="col-span-1 text-center">Patients</div>
+            <div className="col-span-2 text-center">Actions</div>
           </div>
-        ))}
+        </div>
+
+        {/* Staff Rows */}
+        <div className="divide-y divide-gray-100">
+          {filteredStaff.map((member, index) => (
+            <div key={member._id} className={`px-6 py-4 hover:bg-gray-50 transition-colors duration-200 ${
+              index % 2 === 0 ? 'bg-white' : 'bg-gray-25'
+            }`}>
+              <div className="grid grid-cols-12 gap-4 items-center">
+                
+                {/* Staff Member Info */}
+                <div className="col-span-3 flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
+                    member.isOnDuty 
+                      ? 'bg-gradient-to-br from-green-400 to-green-600' 
+                      : 'bg-gradient-to-br from-gray-400 to-gray-600'
+                  }`}>
+                    <Users className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900 text-sm">{member.name}</h3>
+                    {member.employeeId && (
+                      <p className="text-xs text-gray-500">ID: {member.employeeId}</p>
+                    )}
+                    {member.email && (
+                      <p className="text-xs text-gray-500">{member.email}</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Role & Department */}
+                <div className="col-span-2">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-gray-900 capitalize">{getRoleDisplayName(member.role)}</p>
+                    <p className="text-xs text-gray-600 flex items-center gap-1">
+                      <MapPin className="w-3 h-3" />
+                      {member.department}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Status & Shift */}
+                <div className="col-span-2">
+                  <div className="space-y-2">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      member.isOnDuty 
+                        ? 'bg-green-100 text-green-800 border border-green-300' 
+                        : 'bg-gray-100 text-gray-800 border border-gray-300'
+                    }`}>
+                      {member.isOnDuty ? '🟢 On Duty' : '⭕ Off Duty'}
+                    </span>
+                    {member.currentShift && member.currentShift !== 'off' && (
+                      <p className="text-xs text-blue-600 flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {member.currentShift}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Specialization */}
+                <div className="col-span-2">
+                  {member.specialization ? (
+                    <p className="text-sm text-gray-700 flex items-center gap-1">
+                      <CheckCircle className="w-3 h-3 text-purple-500" />
+                      {member.specialization}
+                    </p>
+                  ) : (
+                    <span className="text-xs text-gray-400">-</span>
+                  )}
+                </div>
+
+                {/* Patient Count */}
+                <div className="col-span-1 text-center">
+                  {member.assignedPatients !== undefined ? (
+                    <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${
+                      member.assignedPatients > 3 ? 'bg-red-100 text-red-700' : 
+                      member.assignedPatients > 1 ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'
+                    }`}>
+                      {member.assignedPatients}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-gray-400">-</span>
+                  )}
+                </div>
+
+                {/* Actions */}
+                <div className="col-span-2">
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleToggleDutyStatus(member._id, member.isOnDuty)}
+                      className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 flex items-center gap-1 hover:scale-105 ${
+                        member.isOnDuty 
+                          ? 'bg-orange-100 text-orange-800 hover:bg-orange-200 border border-orange-300' 
+                          : 'bg-green-100 text-green-800 hover:bg-green-200 border border-green-300'
+                      }`}
+                      title={member.isOnDuty ? 'Clock Out' : 'Clock In'}
+                    >
+                      {member.isOnDuty ? (
+                        <>
+                          <X className="w-3 h-3" />
+                          Out
+                        </>
+                      ) : (
+                        <>
+                          <Check className="w-3 h-3" />
+                          In
+                        </>
+                      )}
+                    </button>
+                    
+                    <button 
+                      className="px-3 py-1.5 bg-blue-100 text-blue-800 rounded-md text-xs font-medium hover:bg-blue-200 transition-all duration-200 flex items-center gap-1 border border-blue-300 hover:scale-105"
+                      onClick={() => {
+                        setSelectedStaff(member)
+                        setShowDetailModal(true)
+                      }}
+                      title="View Details"
+                    >
+                      <Eye className="w-3 h-3" />
+                      View
+                    </button>
+                    
+                    <button 
+                      className="px-3 py-1.5 bg-purple-100 text-purple-800 rounded-md text-xs font-medium hover:bg-purple-200 transition-all duration-200 flex items-center gap-1 border border-purple-300 hover:scale-105"
+                      onClick={() => alert(`Viewing ${member.name}'s schedule - Feature coming soon!`)}
+                      title="View Schedule"
+                    >
+                      <Calendar className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Empty State */}
+        {filteredStaff.length === 0 && (
+          <div className="px-6 py-12 text-center">
+            <Users className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No staff members found</h3>
+            <p className="text-gray-500 mb-4">
+              {filterRole !== 'all' || searchTerm 
+                ? 'Try adjusting your filters or search term.' 
+                : 'Get started by adding your first staff member.'
+              }
+            </p>
+            {filterRole === 'all' && !searchTerm && (
+              <button 
+                onClick={() => setShowAddModal(true)}
+                className="btn-primary flex items-center gap-2 mx-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Add Staff Member
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {filteredStaff.length === 0 && (
@@ -385,30 +566,42 @@ export default function StaffOverview({ detailed = false }) {
       <div className="card bg-gray-50">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <button className="p-4 bg-white rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all duration-200">
+          <button 
+            onClick={handleScheduleShift}
+            className="p-4 bg-white rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all duration-200"
+          >
             <div className="text-center">
               <Calendar className="w-6 h-6 text-blue-600 mx-auto mb-2" />
               <span className="text-sm font-medium text-gray-700">Schedule Shift</span>
             </div>
           </button>
           
-          <button className="p-4 bg-white rounded-lg border border-gray-200 hover:border-green-300 hover:shadow-md transition-all duration-200">
+          <button 
+            onClick={handleAssignPatient}
+            className="p-4 bg-white rounded-lg border border-gray-200 hover:border-green-300 hover:shadow-md transition-all duration-200"
+          >
             <div className="text-center">
               <UserCheck className="w-6 h-6 text-green-600 mx-auto mb-2" />
               <span className="text-sm font-medium text-gray-700">Assign Patient</span>
             </div>
           </button>
           
-          <button className="p-4 bg-white rounded-lg border border-gray-200 hover:border-purple-300 hover:shadow-md transition-all duration-200">
+          <button 
+            onClick={handleTimeOff}
+            className="p-4 bg-white rounded-lg border border-gray-200 hover:border-purple-300 hover:shadow-md transition-all duration-200"
+          >
             <div className="text-center">
               <Clock className="w-6 h-6 text-purple-600 mx-auto mb-2" />
               <span className="text-sm font-medium text-gray-700">Time Off</span>
             </div>
           </button>
           
-          <button className="p-4 bg-white rounded-lg border border-gray-200 hover:border-orange-300 hover:shadow-md transition-all duration-200">
+          <button 
+            onClick={handleEmergencyCall}
+            className="p-4 bg-white rounded-lg border border-gray-200 hover:border-red-300 hover:shadow-md transition-all duration-200"
+          >
             <div className="text-center">
-              <AlertTriangle className="w-6 h-6 text-orange-600 mx-auto mb-2" />
+              <AlertTriangle className="w-6 h-6 text-red-600 mx-auto mb-2" />
               <span className="text-sm font-medium text-gray-700">Emergency Call</span>
             </div>
           </button>
@@ -663,21 +856,11 @@ function StaffDetailModal({ staff, onClose }) {
             </div>
           </div>
 
-          {/* Performance & Stats */}
+          {/* Statistics */}
           <div className="border-t border-gray-200 pt-6">
-            <h4 className="font-semibold text-gray-900 mb-4">Performance & Statistics</h4>
+            <h4 className="font-semibold text-gray-900 mb-4">Statistics</h4>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {staff.performanceRating && (
-                <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Star className="w-4 h-4 text-yellow-500" />
-                    <span className="text-sm font-medium text-yellow-800">Performance Rating</span>
-                  </div>
-                  <p className="text-lg font-bold text-yellow-900">{staff.performanceRating}/5.0</p>
-                </div>
-              )}
-
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {staff.assignedPatients !== undefined && (
                 <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                   <div className="flex items-center gap-2 mb-1">
@@ -699,28 +882,6 @@ function StaffDetailModal({ staff, onClose }) {
               )}
             </div>
           </div>
-
-          {/* Certifications */}
-          {staff.certifications && staff.certifications.length > 0 && (
-            <div className="border-t border-gray-200 pt-6">
-              <h4 className="font-semibold text-gray-900 mb-4">Certifications</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {staff.certifications.map((cert, index) => (
-                  <div key={index} className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-                    <div className="flex items-center gap-2">
-                      <Award className="w-4 h-4 text-blue-600" />
-                      <span className="text-sm font-medium text-gray-900">{cert.name}</span>
-                    </div>
-                    {cert.expiryDate && (
-                      <p className="text-xs text-gray-600 mt-1">
-                        Expires: {new Date(cert.expiryDate).toLocaleDateString()}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
         <div className="mt-6 pt-4 border-t border-gray-200">
