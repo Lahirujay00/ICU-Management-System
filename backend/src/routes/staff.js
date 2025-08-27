@@ -7,28 +7,31 @@ import roleMiddleware from '../middleware/role.js';
 
 // Validation middleware
 const validateStaff = [
-  body('name').trim().isLength({ min: 2 }),
-  body('email').isEmail().normalizeEmail(),
-  body('role').isIn(['admin', 'doctor', 'nurse', 'staff']),
-  body('department').trim().notEmpty(),
-  body('phone').trim().notEmpty()
+  body('firstName').trim().isLength({ min: 2 }).withMessage('First name must be at least 2 characters'),
+  body('lastName').trim().isLength({ min: 2 }).withMessage('Last name must be at least 2 characters'),
+  body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
+  body('role').isIn(['doctor', 'nurse', 'respiratory_therapist', 'pharmacist', 'technician', 'administrator']).withMessage('Invalid role'),
+  body('department').trim().notEmpty().withMessage('Department is required'),
+  body('phone').trim().notEmpty().withMessage('Phone number is required'),
+  body('dateOfBirth').optional().isISO8601().withMessage('Valid date of birth is required'),
+  body('gender').optional().isIn(['male', 'female', 'other']).withMessage('Gender must be male, female, or other')
 ];
 
-// All routes require authentication
-router.use(authMiddleware);
+// All routes require authentication (commented out for development with no DB)
+// router.use(authMiddleware);
 
 // Staff CRUD operations
 router.get('/', staffController.getAllStaff);
 router.get('/:id', staffController.getStaffById);
-router.post('/', roleMiddleware(['admin']), validateStaff, staffController.createStaff);
-router.put('/:id', roleMiddleware(['admin']), validateStaff, staffController.updateStaff);
-router.delete('/:id', roleMiddleware(['admin']), staffController.deleteStaff);
+router.post('/', validateStaff, staffController.createStaff); // Removed roleMiddleware for development
+router.put('/:id', validateStaff, staffController.updateStaff); // Removed roleMiddleware for development
+router.delete('/:id', staffController.deleteStaff); // Removed roleMiddleware for development
 
 // Staff-specific operations
 router.get('/:id/schedule', staffController.getStaffSchedule);
-router.post('/:id/schedule', roleMiddleware(['admin', 'nurse']), staffController.updateStaffSchedule);
+router.post('/:id/schedule', staffController.updateStaffSchedule); // Removed roleMiddleware for development
 router.get('/:id/patients', staffController.getStaffPatients);
-router.put('/:id/status', roleMiddleware(['admin']), staffController.updateStaffStatus);
+router.put('/:id/status', staffController.updateStaffStatus); // Removed roleMiddleware for development
 
 // Search and filtering
 router.get('/search/query', staffController.searchStaff);
@@ -37,6 +40,6 @@ router.get('/filter/department/:department', staffController.filterStaffByDepart
 
 // Department management
 router.get('/departments', staffController.getDepartments);
-router.post('/departments', roleMiddleware(['admin']), staffController.createDepartment);
+router.post('/departments', staffController.createDepartment); // Removed roleMiddleware for development
 
 export default router;

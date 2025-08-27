@@ -22,8 +22,8 @@ const staffSchema = new mongoose.Schema({
   lastName: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   phone: { type: String, required: true },
-  dateOfBirth: { type: Date, required: true },
-  gender: { type: String, enum: ['male', 'female', 'other'], required: true },
+  dateOfBirth: { type: Date, required: false }, // Made optional for easier testing
+  gender: { type: String, enum: ['male', 'female', 'other'], required: false }, // Made optional
   
   // Professional Information
   role: { 
@@ -31,6 +31,7 @@ const staffSchema = new mongoose.Schema({
     enum: ['doctor', 'nurse', 'respiratory_therapist', 'pharmacist', 'technician', 'administrator'], 
     required: true 
   },
+  department: { type: String, required: true }, // Added department as required
   specialization: String,
   licenseNumber: String,
   certifications: [String],
@@ -83,11 +84,26 @@ const staffSchema = new mongoose.Schema({
 // Update timestamp on save
 staffSchema.pre('save', function(next) {
   this.updatedAt = new Date()
+  
+  // Generate unique employeeId if not provided
+  if (!this.employeeId) {
+    const rolePrefix = this.role === 'doctor' ? 'DOC' : 
+                      this.role === 'nurse' ? 'NUR' :
+                      this.role === 'respiratory_therapist' ? 'RT' :
+                      'STF'
+    this.employeeId = `${rolePrefix}${String(Date.now()).slice(-6)}`
+  }
+  
   next()
 })
 
 // Virtual for full name
 staffSchema.virtual('fullName').get(function() {
+  return `${this.firstName} ${this.lastName}`
+})
+
+// Virtual for name (for frontend compatibility)
+staffSchema.virtual('name').get(function() {
   return `${this.firstName} ${this.lastName}`
 })
 
@@ -116,6 +132,15 @@ staffSchema.virtual('yearsOfService').get(function() {
   }
   return years
 })
+
+// Virtual for assigned patients count
+staffSchema.virtual('assignedPatientsCount').get(function() {
+  return this.assignedPatients ? this.assignedPatients.length : 0
+})
+
+// Ensure virtual fields are serialized
+staffSchema.set('toJSON', { virtuals: true })
+staffSchema.set('toObject', { virtuals: true })
 
 // Indexes for better query performance
 staffSchema.index({ role: 1 })

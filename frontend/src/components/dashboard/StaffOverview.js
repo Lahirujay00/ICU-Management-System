@@ -96,28 +96,32 @@ export default function StaffOverview({ detailed = false }) {
                           staffData.role === 'nurse' ? 'NUR' :
                           staffData.role === 'respiratory_therapist' ? 'RT' :
                           'STF'
-        staffData.employeeId = `${rolePrefix}${String(staff.length + 1).padStart(3, '0')}`
+        // Use timestamp to ensure uniqueness
+        staffData.employeeId = `${rolePrefix}${String(Date.now()).slice(-6)}`
       }
 
       const newStaffData = {
         ...staffData,
-        name: `${staffData.firstName} ${staffData.lastName}`,
+        // Don't add 'name' field - backend expects firstName and lastName separately
         isOnDuty: false,
         currentShift: 'off',
         status: 'active',
-        assignedPatients: 0,
+        // Remove assignedPatients - backend will create empty array and calculate count as virtual field
         hireDate: new Date().toISOString(),
-        yearsOfService: 0
+        // Remove yearsOfService - backend calculates this as virtual field from hireDate
       }
+
+      console.log('Sending staff data to backend:', newStaffData)
 
       // Try to save to database
       try {
         const savedStaff = await apiClient.createStaff(newStaffData)
         setStaff(prev => [...prev, savedStaff])
-        toast.success(`✅ Staff member ${savedStaff.name} added successfully!`)
+        toast.success(`✅ Staff member ${savedStaff.name || savedStaff.firstName + ' ' + savedStaff.lastName} added successfully!`)
       } catch (apiError) {
         console.log('Database save failed:', apiError)
         toast.error('❌ Failed to add staff member to database. Please try again.')
+        console.error('Full API error:', apiError)
       }
       
       setShowAddModal(false)
@@ -174,7 +178,7 @@ export default function StaffOverview({ detailed = false }) {
   }
 
   const handleAssignPatient = () => {
-    const availableStaff = staff.filter(s => s.isOnDuty && s.assignedPatients < 5)
+    const availableStaff = staff.filter(s => s.isOnDuty && (s.assignedPatientsCount || s.assignedPatients?.length || 0) < 5)
     toast.success(`👥 Assign Patient: ${availableStaff.length} staff available for patient assignment. Opening assignment tool...`)
     // TODO: Implement patient assignment modal
     console.log('Assign Patient clicked - Available staff:', availableStaff)
@@ -463,16 +467,19 @@ export default function StaffOverview({ detailed = false }) {
 
                 {/* Patient Count */}
                 <div className="col-span-1 text-center">
-                  {member.assignedPatients !== undefined ? (
-                    <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${
-                      member.assignedPatients > 3 ? 'bg-red-100 text-red-700' : 
-                      member.assignedPatients > 1 ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'
-                    }`}>
-                      {member.assignedPatients}
-                    </span>
-                  ) : (
-                    <span className="text-xs text-gray-400">-</span>
-                  )}
+                  {(() => {
+                    const patientCount = member.assignedPatientsCount ?? 
+                                       (member.assignedPatients?.length) ?? 
+                                       (typeof member.assignedPatients === 'number' ? member.assignedPatients : 0);
+                    return (
+                      <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${
+                        patientCount > 3 ? 'bg-red-100 text-red-700' : 
+                        patientCount > 1 ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'
+                      }`}>
+                        {patientCount}
+                      </span>
+                    );
+                  })()}
                 </div>
 
                 {/* Actions */}
@@ -730,18 +737,24 @@ function AddStaffModal({ onClose, onSubmit, isSubmitting }) {
             <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
             <input
               type="tel"
-              {...register('phone')}
+              {...register('phone', { required: 'Phone number is required' })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
+            {errors.phone && (
+              <p className="text-red-500 text-xs mt-1">{errors.phone.message}</p>
+            )}
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
             <input
               type="email"
-              {...register('email')}
+              {...register('email', { required: 'Email is required' })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
+            {errors.email && (
+              <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>
+            )}
           </div>
 
           <div className="flex gap-4 pt-4">
@@ -861,15 +874,20 @@ function StaffDetailModal({ staff, onClose }) {
             <h4 className="font-semibold text-gray-900 mb-4">Statistics</h4>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {staff.assignedPatients !== undefined && (
-                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Users className="w-4 h-4 text-blue-500" />
-                    <span className="text-sm font-medium text-blue-800">Assigned Patients</span>
+              {(() => {
+                const patientCount = staff.assignedPatientsCount ?? 
+                                   (staff.assignedPatients?.length) ?? 
+                                   (typeof staff.assignedPatients === 'number' ? staff.assignedPatients : 0);
+                return (
+                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Users className="w-4 h-4 text-blue-500" />
+                      <span className="text-sm font-medium text-blue-800">Assigned Patients</span>
+                    </div>
+                    <p className="text-lg font-bold text-blue-900">{patientCount}</p>
                   </div>
-                  <p className="text-lg font-bold text-blue-900">{staff.assignedPatients}</p>
-                </div>
-              )}
+                );
+              })()}
 
               {staff.yearsOfService !== undefined && (
                 <div className="bg-green-50 p-4 rounded-lg border border-green-200">

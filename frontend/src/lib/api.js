@@ -113,10 +113,20 @@ class ApiClient {
   }
 
   async createStaff(staffData) {
-    return this.request('/staff', {
-      method: 'POST',
-      body: JSON.stringify(staffData),
-    })
+    console.log('🔧 API: Creating staff with data:', staffData)
+    try {
+      const result = await this.request('/staff', {
+        method: 'POST',
+        body: JSON.stringify(staffData),
+      })
+      console.log('✅ API: Staff created successfully:', result)
+      return result
+    } catch (error) {
+      console.error('❌ API: Failed to create staff:', error)
+      console.error('Request URL:', `${this.baseURL}/staff`)
+      console.error('Request data:', staffData)
+      throw error
+    }
   }
 
   async updateStaff(id, staffData) {

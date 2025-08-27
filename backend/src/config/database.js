@@ -1,4 +1,8 @@
 import mongoose from 'mongoose';
+import dns from 'dns';
+
+// Set DNS servers for better resolution
+dns.setServers(['8.8.8.8', '8.8.4.4', '1.1.1.1', '1.0.0.1']);
 
 const connectDB = async () => {
   try {
@@ -7,8 +11,28 @@ const connectDB = async () => {
     console.log('🔄 Attempting to connect to MongoDB...');
     console.log('🔗 Connection string:', mongoURI.replace(/\/\/[^:]+:[^@]+@/, '//***:***@')); // Hide credentials
     
+    // Test DNS resolution for Atlas connections
+    if (mongoURI.includes('mongodb+srv://')) {
+      const hostname = mongoURI.match(/@([^/]+)/)?.[1];
+      if (hostname) {
+        console.log('🔍 Testing DNS resolution for:', hostname);
+        try {
+          const addresses = await dns.promises.resolve(hostname);
+          console.log('✅ DNS resolved successfully:', addresses.slice(0, 2).join(', '));
+        } catch (dnsError) {
+          console.log('⚠️ DNS resolution issue:', dnsError.message);
+          console.log('💡 Trying with different DNS servers...');
+        }
+      }
+    }
+    
     const conn = await mongoose.connect(mongoURI, {
-      serverSelectionTimeoutMS: 5000, // 5 second timeout
+      serverSelectionTimeoutMS: 30000, // 30 second timeout
+      connectTimeoutMS: 30000,
+      socketTimeoutMS: 30000,
+      maxPoolSize: 10,
+      retryWrites: true,
+      retryReads: true
     });
 
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
