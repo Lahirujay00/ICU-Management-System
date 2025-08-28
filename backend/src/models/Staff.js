@@ -53,7 +53,7 @@ const staffSchema = new mongoose.Schema({
   assignedPatients: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Patient' }],
   currentShift: {
     type: String,
-    enum: ['morning', 'afternoon', 'night', 'off'],
+    enum: ['morning', 'afternoon', 'night', 'emergency', 'off'],
     default: 'off'
   },
   

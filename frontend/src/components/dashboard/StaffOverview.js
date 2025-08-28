@@ -218,6 +218,33 @@ export default function StaffOverview({ detailed = false }) {
     console.log('Time Off clicked - Active staff count:', activeStaff)
   }
 
+  // Helper function to get shift time display
+  const getShiftTimeDisplay = (role, shift) => {
+    if (!shift || shift === 'off') return 'Off Duty'
+    
+    const shiftMaps = {
+      nurse: {
+        morning: '7:00 AM - 1:00 PM',
+        afternoon: '1:00 PM - 7:00 PM', 
+        night: '7:00 PM - 7:00 AM'
+      },
+      doctor: {
+        morning: '8:00 AM - 4:00 PM',
+        afternoon: '1:00 PM - 7:00 PM',
+        night: '7:00 PM - 7:00 AM',
+        emergency: '24-hour on-call'
+      },
+      default: {
+        morning: '7:00 AM - 3:00 PM',
+        afternoon: '3:00 PM - 11:00 PM',
+        night: '11:00 PM - 7:00 AM'
+      }
+    }
+    
+    const roleMap = shiftMaps[role] || shiftMaps.default
+    return roleMap[shift] || shift.charAt(0).toUpperCase() + shift.slice(1)
+  }
+
   const handleEmergencyCall = () => {
     const availableStaff = staff.filter(s => s.isOnDuty)
     toast.error(`🚨 EMERGENCY ALERT! Notifying ${availableStaff.length} on-duty staff members immediately!`)
@@ -474,7 +501,10 @@ export default function StaffOverview({ detailed = false }) {
                     {member.currentShift && member.currentShift !== 'off' && (
                       <p className="text-xs text-blue-600 flex items-center gap-1">
                         <Clock className="w-3 h-3" />
-                        {member.currentShift}
+                        <span className="font-medium capitalize">{member.currentShift}</span>
+                        <span className="text-gray-500">
+                          ({getShiftTimeDisplay(member.role, member.currentShift)})
+                        </span>
                       </p>
                     )}
                   </div>
@@ -668,6 +698,7 @@ export default function StaffOverview({ detailed = false }) {
           staff={staff}
           onClose={() => setShowScheduleModal(false)}
           onUpdateSchedule={handleUpdateSchedule}
+          getShiftTimeDisplay={getShiftTimeDisplay}
         />
       )}
     </div>
@@ -952,10 +983,51 @@ function StaffDetailModal({ staff, onClose }) {
 }
 
 // Schedule Shift Modal Component
-const ScheduleShiftModal = ({ staff, onClose, onUpdateSchedule }) => {
+const ScheduleShiftModal = ({ staff, onClose, onUpdateSchedule, getShiftTimeDisplay }) => {
   const [selectedStaff, setSelectedStaff] = useState([])
   const [shift, setShift] = useState('morning')
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
+
+  // Get shift options based on selected staff roles
+  const getShiftOptions = () => {
+    const selectedMembers = staff.filter(member => selectedStaff.includes(member._id))
+    const roles = selectedMembers.map(member => member.role)
+    const hasNurses = roles.includes('nurse')
+    const hasDoctors = roles.includes('doctor')
+    
+    // If mixed roles or no selection, show general options
+    if (selectedStaff.length === 0 || (hasNurses && hasDoctors)) {
+      return [
+        { value: 'morning', label: 'Morning Shift', time: 'Times vary by role' },
+        { value: 'afternoon', label: 'Afternoon Shift', time: 'Times vary by role' },
+        { value: 'night', label: 'Night Shift', time: 'Times vary by role' },
+        { value: 'off', label: 'Off Duty', time: '' }
+      ]
+    }
+    
+    // Nurse-specific shifts
+    if (hasNurses && !hasDoctors) {
+      return [
+        { value: 'morning', label: 'Morning Shift', time: '7:00 AM - 1:00 PM' },
+        { value: 'afternoon', label: 'Afternoon Shift', time: '1:00 PM - 7:00 PM' },
+        { value: 'night', label: 'Night Shift', time: '7:00 PM - 7:00 AM (12 hours)' },
+        { value: 'off', label: 'Off Duty', time: '' }
+      ]
+    }
+    
+    // Doctor-specific shifts
+    if (hasDoctors && !hasNurses) {
+      return [
+        { value: 'morning', label: 'Morning Shift', time: '8:00 AM - 4:00 PM' },
+        { value: 'afternoon', label: 'Afternoon/Evening Shift', time: '1:00 PM - 7:00 PM' },
+        { value: 'night', label: 'Night Shift', time: '7:00 PM - 7:00 AM (24-hour cycle)' },
+        { value: 'emergency', label: 'Emergency Rotation', time: '24-hour on-call' },
+        { value: 'off', label: 'Off Duty', time: '' }
+      ]
+    }
+    
+    return []
+  }
 
   const handleSelectStaff = (staffId) => {
     setSelectedStaff(prev => 
@@ -1008,13 +1080,60 @@ const ScheduleShiftModal = ({ staff, onClose, onUpdateSchedule }) => {
               onChange={(e) => setShift(e.target.value)}
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
-              <option value="morning">Morning (6 AM - 2 PM)</option>
-              <option value="afternoon">Afternoon (2 PM - 10 PM)</option>
-              <option value="night">Night (10 PM - 6 AM)</option>
-              <option value="off">Off Duty</option>
+              {getShiftOptions().map(option => (
+                <option key={option.value} value={option.value}>
+                  {option.label} {option.time && `(${option.time})`}
+                </option>
+              ))}
             </select>
+            {selectedStaff.length > 0 && (
+              <p className="text-xs text-gray-600 mt-1">
+                Selected: {staff.filter(s => selectedStaff.includes(s._id)).map(s => s.role).join(', ')} roles
+              </p>
+            )}
           </div>
         </div>
+
+        {/* Shift Information */}
+        {selectedStaff.length > 0 && (
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h4 className="text-sm font-semibold text-blue-900 mb-2">Shift Schedule Information</h4>
+            <div className="text-xs text-blue-800 space-y-1">
+              {(() => {
+                const selectedMembers = staff.filter(member => selectedStaff.includes(member._id))
+                const roles = [...new Set(selectedMembers.map(member => member.role))]
+                
+                return roles.map(role => (
+                  <div key={role} className="border-l-2 border-blue-300 pl-2">
+                    <p className="font-medium capitalize">{role}s:</p>
+                    {role === 'nurse' && (
+                      <ul className="ml-2 space-y-0.5">
+                        <li>• Morning: 7:00 AM - 1:00 PM</li>
+                        <li>• Afternoon: 1:00 PM - 7:00 PM</li>
+                        <li>• Night: 7:00 PM - 7:00 AM (12 hours)</li>
+                      </ul>
+                    )}
+                    {role === 'doctor' && (
+                      <ul className="ml-2 space-y-0.5">
+                        <li>• Morning: 8:00 AM - 4:00 PM (General/Outpatient)</li>
+                        <li>• Afternoon: 1:00 PM - 7:00 PM (Follow-up/Surgical)</li>
+                        <li>• Night: 7:00 PM - 7:00 AM (ICU/Emergency/Trauma)</li>
+                        <li>• Emergency: 24-hour on-call rotation</li>
+                      </ul>
+                    )}
+                    {!['nurse', 'doctor'].includes(role) && (
+                      <ul className="ml-2 space-y-0.5">
+                        <li>• Morning: 7:00 AM - 3:00 PM</li>
+                        <li>• Afternoon: 3:00 PM - 11:00 PM</li>
+                        <li>• Night: 11:00 PM - 7:00 AM</li>
+                      </ul>
+                    )}
+                  </div>
+                ))
+              })()}
+            </div>
+          </div>
+        )}
 
         {/* Staff Selection */}
         <div className="mb-6">
@@ -1051,7 +1170,11 @@ const ScheduleShiftModal = ({ staff, onClose, onUpdateSchedule }) => {
                     }`}>
                       {member.isOnDuty ? 'On Duty' : 'Off Duty'}
                     </span>
-                    <p className="text-xs text-gray-500 mt-1">Current: {member.currentShift || 'off'}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Current: {member.currentShift === 'off' ? 'Off Duty' : 
+                        `${member.currentShift?.charAt(0).toUpperCase()}${member.currentShift?.slice(1)} (${getShiftTimeDisplay(member.role, member.currentShift)})`
+                      }
+                    </p>
                   </div>
                 </div>
               </div>

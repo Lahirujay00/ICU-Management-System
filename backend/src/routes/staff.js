@@ -28,7 +28,7 @@ const validateStaffUpdate = [
   body('dateOfBirth').optional().isISO8601().withMessage('Valid date of birth is required'),
   body('gender').optional().isIn(['male', 'female', 'other']).withMessage('Gender must be male, female, or other'),
   body('isOnDuty').optional().isBoolean().withMessage('isOnDuty must be a boolean'),
-  body('currentShift').optional().isIn(['morning', 'afternoon', 'night', 'off']).withMessage('Invalid shift')
+  body('currentShift').optional().isIn(['morning', 'afternoon', 'night', 'emergency', 'off']).withMessage('Invalid shift')
 ];
 
 // All routes require authentication (commented out for development with no DB)
