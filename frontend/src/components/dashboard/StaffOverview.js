@@ -471,11 +471,13 @@ export default function StaffOverview({ detailed = false }) {
                     {member.employeeId && (
                       <p className="text-xs text-gray-500">ID: {member.employeeId}</p>
                     )}
-                    {member.email && (
-                      <p className="text-xs text-gray-500">{member.email}</p>
+                    {member.phone && (
+                      <p className="text-xs text-gray-500">Contact: {member.phone}</p>
                     )}
                   </div>
                 </div>
+
+                
 
                 {/* Role & Department */}
                 <div className="col-span-2">
