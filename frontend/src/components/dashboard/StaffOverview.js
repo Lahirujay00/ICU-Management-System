@@ -499,13 +499,15 @@ export default function StaffOverview({ detailed = false }) {
                       {member.isOnDuty ? '🟢 On Duty' : '⭕ Off Duty'}
                     </span>
                     {member.currentShift && member.currentShift !== 'off' && (
-                      <p className="text-xs text-blue-600 flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        <span className="font-medium capitalize">{member.currentShift}</span>
-                        <span className="text-gray-500">
-                          ({getShiftTimeDisplay(member.role, member.currentShift)})
-                        </span>
-                      </p>
+                      <div className="text-xs text-blue-600">
+                        <div className="flex items-center gap-1 mb-1">
+                          <Clock className="w-3 h-3" />
+                          <span className="font-medium capitalize">{member.currentShift}</span>
+                        </div>
+                        <div className="text-gray-500 ml-4 text-xs">
+                          {getShiftTimeDisplay(member.role, member.currentShift)}
+                        </div>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -543,7 +545,7 @@ export default function StaffOverview({ detailed = false }) {
                 <div className="col-span-2">
                   <div className="flex items-center gap-1">
                     <button
-                      onClick={() => handleToggleDutyStatus(member._id, member.isOnDuty)}
+                      onClick={() => handleToggleDutyStatus(member._id)}
                       className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 flex items-center gap-1 hover:scale-105 ${
                         member.isOnDuty 
                           ? 'bg-orange-100 text-orange-800 hover:bg-orange-200 border border-orange-300' 
