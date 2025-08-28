@@ -33,6 +33,7 @@ export default function StaffOverview({ detailed = false }) {
   const [searchTerm, setSearchTerm] = useState('')
   const [showAddModal, setShowAddModal] = useState(false)
   const [showDetailModal, setShowDetailModal] = useState(false)
+  const [showScheduleModal, setShowScheduleModal] = useState(false)
   const [selectedStaff, setSelectedStaff] = useState(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -136,7 +137,15 @@ export default function StaffOverview({ detailed = false }) {
   const handleToggleDutyStatus = async (staffId) => {
     try {
       const member = staff.find(s => s._id === staffId)
+      if (!member) {
+        toast.error('❌ Staff member not found')
+        return
+      }
+      
+      const memberName = member.name || `${member.firstName} ${member.lastName}`
       const newDutyStatus = !member.isOnDuty
+      
+      console.log(`🔧 Toggling duty status for ${memberName}: ${member.isOnDuty} -> ${newDutyStatus}`)
       
       // Update local state immediately for better UX
       setStaff(prev => prev.map(member => 
@@ -147,14 +156,17 @@ export default function StaffOverview({ detailed = false }) {
       
       // Try to update in database
       try {
-        await apiClient.updateStaff(staffId, { 
+        const updateData = { 
           isOnDuty: newDutyStatus, 
           currentShift: newDutyStatus ? 'morning' : 'off' 
-        })
-        toast.success(`✅ ${member.name} is now ${newDutyStatus ? 'on duty' : 'off duty'}`)
+        }
+        console.log(`🔧 Sending update to API:`, updateData)
+        
+        await apiClient.updateStaff(staffId, updateData)
+        toast.success(`✅ ${memberName} is now ${newDutyStatus ? 'on duty' : 'off duty'}`)
       } catch (apiError) {
-        console.log('Database update failed:', apiError)
-        toast.error(`❌ Failed to update ${member.name}'s duty status in database`)
+        console.error('Database update failed:', apiError)
+        toast.error(`❌ Failed to update ${memberName}'s duty status in database`)
         // Revert the local state change on API failure
         setStaff(prev => prev.map(member => 
           member._id === staffId 
@@ -170,11 +182,26 @@ export default function StaffOverview({ detailed = false }) {
 
   // Quick Action Handlers
   const handleScheduleShift = () => {
-    const onDutyCount = onDutyStaff.length
-    const totalCount = staff.length
-    toast.success(`📅 Schedule Shift: ${onDutyCount}/${totalCount} staff currently on duty. Opening shift scheduler...`)
-    // TODO: Implement shift scheduling modal
-    console.log('Schedule Shift clicked - Current staff status:', { onDutyCount, totalCount })
+    setShowScheduleModal(true)
+  }
+
+  const handleUpdateSchedule = async (staffId, scheduleData) => {
+    try {
+      await apiClient.updateStaff(staffId, scheduleData)
+      
+      // Update local state
+      setStaff(prev => prev.map(member => 
+        member._id === staffId 
+          ? { ...member, ...scheduleData }
+          : member
+      ))
+      
+      toast.success('✅ Schedule updated successfully')
+      setShowScheduleModal(false)
+    } catch (error) {
+      console.error('Error updating schedule:', error)
+      toast.error('❌ Failed to update schedule')
+    }
   }
 
   const handleAssignPatient = () => {
@@ -634,6 +661,15 @@ export default function StaffOverview({ detailed = false }) {
           }}
         />
       )}
+
+      {/* Schedule Shift Modal */}
+      {showScheduleModal && (
+        <ScheduleShiftModal 
+          staff={staff}
+          onClose={() => setShowScheduleModal(false)}
+          onUpdateSchedule={handleUpdateSchedule}
+        />
+      )}
     </div>
   )
 }
@@ -908,6 +944,135 @@ function StaffDetailModal({ staff, onClose }) {
             className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
           >
             Close
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Schedule Shift Modal Component
+const ScheduleShiftModal = ({ staff, onClose, onUpdateSchedule }) => {
+  const [selectedStaff, setSelectedStaff] = useState([])
+  const [shift, setShift] = useState('morning')
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0])
+
+  const handleSelectStaff = (staffId) => {
+    setSelectedStaff(prev => 
+      prev.includes(staffId) 
+        ? prev.filter(id => id !== staffId)
+        : [...prev, staffId]
+    )
+  }
+
+  const handleSchedule = () => {
+    if (selectedStaff.length === 0) {
+      toast.error('Please select at least one staff member')
+      return
+    }
+
+    selectedStaff.forEach(staffId => {
+      onUpdateSchedule(staffId, {
+        currentShift: shift,
+        isOnDuty: shift !== 'off',
+        scheduleDate: date
+      })
+    })
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-bold text-gray-900">Schedule Staff Shifts</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        {/* Schedule Controls */}
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Shift</label>
+            <select
+              value={shift}
+              onChange={(e) => setShift(e.target.value)}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="morning">Morning (6 AM - 2 PM)</option>
+              <option value="afternoon">Afternoon (2 PM - 10 PM)</option>
+              <option value="night">Night (10 PM - 6 AM)</option>
+              <option value="off">Off Duty</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Staff Selection */}
+        <div className="mb-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-3">Select Staff Members</h3>
+          <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-lg">
+            {staff.map((member) => (
+              <div
+                key={member._id}
+                className={`p-3 border-b border-gray-100 last:border-b-0 cursor-pointer hover:bg-gray-50 ${
+                  selectedStaff.includes(member._id) ? 'bg-blue-50 border-blue-200' : ''
+                }`}
+                onClick={() => handleSelectStaff(member._id)}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedStaff.includes(member._id)}
+                      onChange={() => handleSelectStaff(member._id)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <div>
+                      <p className="font-medium text-gray-900">
+                        {member.name || `${member.firstName} ${member.lastName}`}
+                      </p>
+                      <p className="text-sm text-gray-500">{member.role} - {member.department}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                      member.isOnDuty 
+                        ? 'bg-green-100 text-green-700' 
+                        : 'bg-gray-100 text-gray-700'
+                    }`}>
+                      {member.isOnDuty ? 'On Duty' : 'Off Duty'}
+                    </span>
+                    <p className="text-xs text-gray-500 mt-1">Current: {member.currentShift || 'off'}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSchedule}
+            disabled={selectedStaff.length === 0}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+          >
+            Schedule {selectedStaff.length} Staff
           </button>
         </div>
       </div>

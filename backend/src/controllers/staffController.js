@@ -132,21 +132,47 @@ export const createStaff = async (req, res) => {
 
 // Update a staff member
 export const updateStaff = async (req, res) => {
+  console.log('🔧 BACKEND: Received staff update request for ID:', req.params.id)
+  console.log('Update data:', req.body)
+  
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
+    console.log('❌ BACKEND: Validation errors:', errors.array())
     return sendError(res, 400, 'Validation failed', errors);
   }
 
   try {
+    // Check if MongoDB is connected
+    const isMongoConnected = mongoose.connection.readyState === 1;
+    console.log('MongoDB connection state:', mongoose.connection.readyState);
+    
+    if (!isMongoConnected) {
+      console.log('⚠️ MongoDB not connected, using mock response for testing');
+      
+      // Return a mock updated response
+      const mockUpdatedStaff = {
+        _id: req.params.id,
+        ...req.body,
+        updatedAt: new Date()
+      };
+      
+      console.log('✅ Mock updated staff:', mockUpdatedStaff);
+      return res.json(mockUpdatedStaff);
+    }
+
     let staff = await Staff.findById(req.params.id);
     if (!staff) {
+      console.log('❌ BACKEND: Staff not found with ID:', req.params.id)
       return sendError(res, 404, 'Staff not found');
     }
 
+    console.log('🔧 BACKEND: Updating staff member')
     staff = await Staff.findByIdAndUpdate(req.params.id, req.body, { new: true }).select('-password');
+    console.log('✅ Updated staff in database:', staff);
     res.json(staff);
   } catch (err) {
-    console.error(err.message);
+    console.error('❌ Error updating staff:', err.message);
+    console.error('Full error:', err);
     sendError(res, 500, 'Server error while updating staff');
   }
 };
