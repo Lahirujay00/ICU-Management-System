@@ -187,28 +187,13 @@ export default function PatientOverview({ detailed = false }) {
         dischargeDate: new Date().toISOString(),
         dischargeReason: dischargeData.reason,
         dischargeNotes: dischargeData.notes || '',
+        dischargedBy: 'ICU Staff', // In real app, use logged-in user
+        destination: dischargeData.destination || (dischargeData.reason === 'discharged' ? 'Home' : 
+                    dischargeData.reason === 'transfer' ? 'Another Facility' : 'N/A'),
         isActive: false
       };
       
       await apiClient.updatePatient(patientToDischarge._id, updateData);
-      
-      // Create discharge record
-      const dischargeRecord = {
-        patientId: patientToDischarge.patientId || patientToDischarge._id,
-        patientName: patientToDischarge.name,
-        bedNumber: patientToDischarge.bedNumber,
-        dischargeDate: new Date().toISOString(),
-        dischargeReason: dischargeData.reason,
-        dischargeNotes: dischargeData.notes || '',
-        diagnosis: patientToDischarge.diagnosis,
-        lengthOfStay: patientToDischarge.admissionDate ? 
-          Math.ceil((new Date() - new Date(patientToDischarge.admissionDate)) / (1000 * 60 * 60 * 24)) : 0
-      };
-      
-      // Store discharge record in localStorage for now (in real app, this would go to database)
-      const existingRecords = JSON.parse(localStorage.getItem('dischargeRecords') || '[]');
-      existingRecords.push(dischargeRecord);
-      localStorage.setItem('dischargeRecords', JSON.stringify(existingRecords));
       
       const reasonText = dischargeData.reason === 'discharged' ? 'discharged' : 
                         dischargeData.reason === 'death' ? 'recorded as deceased' :

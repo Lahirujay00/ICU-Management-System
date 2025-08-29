@@ -12,6 +12,7 @@ import patientRoutes from './routes/patients.js';
 import staffRoutes from './routes/staff.js';
 import equipmentRoutes from './routes/equipment.js';
 import dashboardRoutes from './routes/dashboard.js';
+import dischargeHistoryRoutes from './routes/dischargeHistory.js';
 
 const app = express();
 const PORT = process.env.BACKEND_PORT || process.env.PORT || 5000;
@@ -63,6 +64,7 @@ app.use('/api/patients', patientRoutes);
 app.use('/api/staff', staffRoutes);
 app.use('/api/equipment', equipmentRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/discharge-history', dischargeHistoryRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeftIcon, MagnifyingGlassIcon, FunnelIcon, EyeIcon, TrashIcon, DocumentArrowDownIcon } from '@heroicons/react/24/outline';
+import { apiClient } from '@/lib/api';
+import toast from 'react-hot-toast';
 
 const DischargeHistoryPage = () => {
   const router = useRouter();
@@ -22,13 +24,27 @@ const DischargeHistoryPage = () => {
     filterHistory();
   }, [dischargeHistory, searchTerm, filterCriteria]);
 
-  const loadDischargeHistory = () => {
+  const loadDischargeHistory = async () => {
     try {
-      const history = JSON.parse(localStorage.getItem('dischargeHistory') || '[]');
+      console.log('Loading discharge history from API...');
+      const history = await apiClient.getDischargeHistory();
+      console.log(`✅ Loaded ${history.length} discharge records from database`);
       setDischargeHistory(history);
     } catch (error) {
-      console.error('Error loading discharge history:', error);
-      setDischargeHistory([]);
+      console.error('❌ Error loading discharge history from API:', error);
+      // Fallback to localStorage for backward compatibility
+      try {
+        const localHistory = JSON.parse(localStorage.getItem('dischargeHistory') || '[]');
+        console.log(`📝 Using ${localHistory.length} records from localStorage as fallback`);
+        setDischargeHistory(localHistory);
+        if (localHistory.length === 0) {
+          toast.error('Failed to load discharge history from database. Please check your connection.');
+        }
+      } catch (localError) {
+        console.error('❌ Error loading from localStorage:', localError);
+        setDischargeHistory([]);
+        toast.error('Failed to load discharge history');
+      }
     } finally {
       setLoading(false);
     }
@@ -85,11 +101,29 @@ const DischargeHistoryPage = () => {
     setIsDetailModalOpen(true);
   };
 
-  const handleDeleteRecord = (recordId) => {
+  const handleDeleteRecord = async (recordId) => {
     if (window.confirm('Are you sure you want to delete this discharge record? This action cannot be undone.')) {
-      const updatedHistory = dischargeHistory.filter(record => record.id !== recordId);
-      setDischargeHistory(updatedHistory);
-      localStorage.setItem('dischargeHistory', JSON.stringify(updatedHistory));
+      try {
+        await apiClient.deleteDischargeRecord(recordId);
+        
+        // Update local state
+        const updatedHistory = dischargeHistory.filter(record => record.id !== recordId);
+        setDischargeHistory(updatedHistory);
+        
+        toast.success('Discharge record deleted successfully');
+      } catch (error) {
+        console.error('❌ Error deleting discharge record:', error);
+        
+        // Fallback to localStorage for backward compatibility
+        try {
+          const updatedHistory = dischargeHistory.filter(record => record.id !== recordId);
+          setDischargeHistory(updatedHistory);
+          localStorage.setItem('dischargeHistory', JSON.stringify(updatedHistory));
+          toast.success('Discharge record deleted from local storage');
+        } catch (localError) {
+          toast.error('Failed to delete discharge record');
+        }
+      }
     }
   };
 

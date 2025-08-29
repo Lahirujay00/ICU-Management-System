@@ -143,10 +143,18 @@ const patientSchema = new mongoose.Schema({
   dischargeDate: Date,
   dischargeReason: {
     type: String,
-    enum: ['discharged', 'transfer', 'death'],
+    enum: ['discharged', 'transfer', 'death', 'against_medical_advice'],
     default: null
   },
   dischargeNotes: {
+    type: String,
+    trim: true
+  },
+  dischargedBy: {
+    type: String,
+    trim: true
+  },
+  destination: {
     type: String,
     trim: true
   },

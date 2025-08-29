@@ -478,6 +478,15 @@ class ApiClient {
       }
     ]
   }
+
+  // Discharge History endpoints
+  async getDischargeHistory() {
+    return this.request('/discharge-history')
+  }
+
+  async deleteDischargeRecord(id) {
+    return this.delete(`/discharge-history/${id}`)
+  }
 }
 
 export const apiClient = new ApiClient()
