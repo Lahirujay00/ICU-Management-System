@@ -35,6 +35,7 @@ export default function StaffOverview({ detailed = false }) {
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [showScheduleModal, setShowScheduleModal] = useState(false)
   const [selectedStaff, setSelectedStaff] = useState(null)
+  const [selectedStaffForSchedule, setSelectedStaffForSchedule] = useState(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
@@ -185,8 +186,9 @@ export default function StaffOverview({ detailed = false }) {
   }
 
   // Quick Action Handlers
-  const handleScheduleShift = () => {
-    console.log('🔧 handleScheduleShift called');
+  const handleScheduleShift = (staffId = null) => {
+    console.log('🔧 handleScheduleShift called with staffId:', staffId);
+    setSelectedStaffForSchedule(staffId); // Store which staff member to pre-select
     console.log('🔧 Setting showScheduleModal to true');
     setShowScheduleModal(true)
   }
@@ -588,8 +590,8 @@ export default function StaffOverview({ detailed = false }) {
                     
                     <button 
                       className="px-3 py-1.5 bg-purple-100 text-purple-800 rounded-md text-xs font-medium hover:bg-purple-200 transition-all duration-200 flex items-center gap-1 border border-purple-300 hover:scale-105"
-                      onClick={() => alert(`Viewing ${member.name}'s schedule - Feature coming soon!`)}
-                      title="View Schedule"
+                      onClick={() => handleScheduleShift(member._id)}
+                      title="Schedule Shift"
                     >
                       <Calendar className="w-3 h-3" />
                     </button>
@@ -706,7 +708,11 @@ export default function StaffOverview({ detailed = false }) {
       {showScheduleModal && (
         <ScheduleShiftModal 
           staff={staff}
-          onClose={() => setShowScheduleModal(false)}
+          preSelectedStaffId={selectedStaffForSchedule}
+          onClose={() => {
+            setShowScheduleModal(false)
+            setSelectedStaffForSchedule(null)
+          }}
           onUpdateSchedule={handleUpdateSchedule}
           getShiftTimeDisplay={getShiftTimeDisplay}
         />
@@ -993,8 +999,8 @@ function StaffDetailModal({ staff, onClose }) {
 }
 
 // Schedule Shift Modal Component
-const ScheduleShiftModal = ({ staff, onClose, onUpdateSchedule, getShiftTimeDisplay }) => {
-  const [selectedStaff, setSelectedStaff] = useState([])
+const ScheduleShiftModal = ({ staff, preSelectedStaffId, onClose, onUpdateSchedule, getShiftTimeDisplay }) => {
+  const [selectedStaff, setSelectedStaff] = useState(preSelectedStaffId ? [preSelectedStaffId] : [])
   const [shift, setShift] = useState('morning')
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
 
