@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import Overview from './dashboard/Overview'
 import PatientOverview from './dashboard/PatientOverview'
 import StaffOverview from './dashboard/StaffOverview'
@@ -16,6 +16,7 @@ import Header from './navigation/Header'
 export default function Dashboard() {
   const { data: session } = useSession()
   const searchParams = useSearchParams()
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState('overview')
   const [isLoading, setIsLoading] = useState(true)
 
@@ -24,11 +25,21 @@ export default function Dashboard() {
     const tabParam = searchParams.get('tab')
     if (tabParam) {
       setActiveTab(tabParam)
+    } else {
+      // If no tab param, default to overview and update URL
+      setActiveTab('overview')
+      router.replace('/?tab=overview', undefined, { shallow: true })
     }
     
     // Load initial dashboard data
     loadDashboardData()
   }, [searchParams])
+
+  const handleTabChange = (newTab) => {
+    setActiveTab(newTab)
+    // Update URL with new tab parameter
+    router.replace(`/?tab=${newTab}`, undefined, { shallow: true })
+  }
 
   const loadDashboardData = async () => {
     try {
@@ -72,7 +83,7 @@ export default function Dashboard() {
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar Navigation */}
-      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+      <Sidebar activeTab={activeTab} onTabChange={handleTabChange} />
       
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden">

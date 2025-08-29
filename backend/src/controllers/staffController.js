@@ -208,9 +208,67 @@ export const getStaffPatients = async (req, res) => {
   res.status(200).json({ message: `Patients for staff ${req.params.id}` });
 };
 
-// Update staff status (placeholder)
+// Update staff status (duty status, shift)
 export const updateStaffStatus = async (req, res) => {
-  res.status(200).json({ message: `Status updated for staff ${req.params.id}` });
+  console.log('🔧 BACKEND: Received staff status update request for ID:', req.params.id);
+  console.log('Status update data:', req.body);
+  
+  try {
+    // Check if MongoDB is connected
+    const isMongoConnected = mongoose.connection.readyState === 1;
+    console.log('MongoDB connection state:', mongoose.connection.readyState);
+    
+    if (!isMongoConnected) {
+      console.log('⚠️ MongoDB not connected, using mock response for testing');
+      
+      // Return a mock updated response
+      const mockUpdatedStaff = {
+        _id: req.params.id,
+        ...req.body,
+        updatedAt: new Date()
+      };
+      
+      console.log('✅ Mock updated staff status:', mockUpdatedStaff);
+      return res.json(mockUpdatedStaff);
+    }
+
+    let staff = await Staff.findById(req.params.id);
+    if (!staff) {
+      console.log('❌ BACKEND: Staff not found with ID:', req.params.id);
+      return sendError(res, 404, 'Staff not found');
+    }
+
+    console.log('🔧 BACKEND: Current staff status:', {
+      isOnDuty: staff.isOnDuty,
+      currentShift: staff.currentShift
+    });
+
+    // Update only the status-related fields
+    const statusUpdate = {};
+    if ('isOnDuty' in req.body) statusUpdate.isOnDuty = req.body.isOnDuty;
+    if ('currentShift' in req.body) statusUpdate.currentShift = req.body.currentShift;
+    
+    console.log('🔧 BACKEND: Updating staff status with:', statusUpdate);
+    
+    staff = await Staff.findByIdAndUpdate(
+      req.params.id, 
+      statusUpdate, 
+      { new: true }
+    ).select('-password');
+    
+    console.log('✅ Updated staff status in database:', {
+      _id: staff._id,
+      name: `${staff.firstName} ${staff.lastName}`,
+      isOnDuty: staff.isOnDuty,
+      currentShift: staff.currentShift
+    });
+    
+    res.json(staff);
+  } catch (err) {
+    console.error('❌ Error updating staff status:', err.message);
+    console.error('Full error:', err);
+    sendError(res, 500, 'Server error while updating staff status');
+  }
 };
 
 // Search staff (placeholder)

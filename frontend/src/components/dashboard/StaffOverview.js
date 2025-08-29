@@ -136,8 +136,12 @@ export default function StaffOverview({ detailed = false }) {
 
   const handleToggleDutyStatus = async (staffId) => {
     try {
+      console.log('🔧 handleToggleDutyStatus called with staffId:', staffId);
+      console.log('🔧 Current staff array:', staff);
+      
       const member = staff.find(s => s._id === staffId)
       if (!member) {
+        console.error('❌ Staff member not found for ID:', staffId);
         toast.error('❌ Staff member not found')
         return
       }
@@ -160,12 +164,12 @@ export default function StaffOverview({ detailed = false }) {
           isOnDuty: newDutyStatus, 
           currentShift: newDutyStatus ? 'morning' : 'off' 
         }
-        console.log(`🔧 Sending update to API:`, updateData)
+        console.log(`🔧 Sending status update to API:`, updateData)
         
-        await apiClient.updateStaff(staffId, updateData)
+        await apiClient.updateStaffStatus(staffId, updateData)
         toast.success(`✅ ${memberName} is now ${newDutyStatus ? 'on duty' : 'off duty'}`)
       } catch (apiError) {
-        console.error('Database update failed:', apiError)
+        console.error('Database status update failed:', apiError)
         toast.error(`❌ Failed to update ${memberName}'s duty status in database`)
         // Revert the local state change on API failure
         setStaff(prev => prev.map(member => 
@@ -182,6 +186,8 @@ export default function StaffOverview({ detailed = false }) {
 
   // Quick Action Handlers
   const handleScheduleShift = () => {
+    console.log('🔧 handleScheduleShift called');
+    console.log('🔧 Setting showScheduleModal to true');
     setShowScheduleModal(true)
   }
 

@@ -51,6 +51,10 @@ const staffSchema = new mongoose.Schema({
   
   // Work Assignment
   assignedPatients: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Patient' }],
+  isOnDuty: { 
+    type: Boolean, 
+    default: false 
+  },
   currentShift: {
     type: String,
     enum: ['morning', 'afternoon', 'night', 'emergency', 'off'],
@@ -73,7 +77,6 @@ const staffSchema = new mongoose.Schema({
   },
   
   // Administrative
-  department: { type: String, default: 'ICU' },
   supervisor: { type: mongoose.Schema.Types.ObjectId, ref: 'Staff' },
   
   // Timestamps

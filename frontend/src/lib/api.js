@@ -136,6 +136,14 @@ class ApiClient {
     })
   }
 
+  async updateStaffStatus(id, statusData) {
+    console.log('🔧 API: Updating staff status for ID:', id, 'with data:', statusData);
+    return this.request(`/staff/${id}/status`, {
+      method: 'PUT',
+      body: JSON.stringify(statusData),
+    })
+  }
+
   // Equipment endpoints
   async getEquipment() {
     return this.request('/equipment')
