@@ -44,7 +44,14 @@ const connectDB = async () => {
     });
 
     mongoose.connection.on('disconnected', () => {
-      console.log('⚠️ MongoDB disconnected');
+      console.log('⚠️ MongoDB disconnected - attempting to reconnect...');
+      setTimeout(() => {
+        connectDB();
+      }, 5000);
+    });
+
+    mongoose.connection.on('reconnected', () => {
+      console.log('✅ MongoDB reconnected');
     });
 
     // Graceful shutdown

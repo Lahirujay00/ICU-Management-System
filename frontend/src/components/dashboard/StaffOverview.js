@@ -492,8 +492,8 @@ export default function StaffOverview({ detailed = false }) {
 
                 {/* Status & Shift */}
                 <div className="col-span-2">
-                  <div className="space-y-2">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                  <div className="flex flex-col gap-2">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium w-fit ${
                       member.isOnDuty 
                         ? 'bg-green-100 text-green-800 border border-green-300' 
                         : 'bg-gray-100 text-gray-800 border border-gray-300'
@@ -501,12 +501,12 @@ export default function StaffOverview({ detailed = false }) {
                       {member.isOnDuty ? '🟢 On Duty' : '⭕ Off Duty'}
                     </span>
                     {member.currentShift && member.currentShift !== 'off' && (
-                      <div className="text-xs text-blue-600">
-                        <div className="flex items-center gap-1 mb-1">
+                      <div className="text-xs">
+                        <div className="flex items-center gap-1 text-blue-600 mb-1">
                           <Clock className="w-3 h-3" />
                           <span className="font-medium capitalize">{member.currentShift}</span>
                         </div>
-                        <div className="text-gray-500 ml-4 text-xs">
+                        <div className="text-gray-500 text-xs pl-4">
                           {getShiftTimeDisplay(member.role, member.currentShift)}
                         </div>
                       </div>
