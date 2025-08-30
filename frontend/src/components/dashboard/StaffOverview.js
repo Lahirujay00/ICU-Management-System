@@ -212,6 +212,15 @@ export default function StaffOverview({ detailed = false }) {
           : member
       ))
       
+      // Show info about patient assignment availability when staff goes on/off duty
+      if (showAssignPatientModal) {
+        if (newDutyStatus) {
+          toast.info(`✅ ${memberName} is now available for patient assignments`)
+        } else {
+          toast.info(`⚠️ ${memberName} is no longer available for new patient assignments`)
+        }
+      }
+      
       // Try to update in database
       try {
         const updateData = { 
@@ -267,6 +276,18 @@ export default function StaffOverview({ detailed = false }) {
       ))
       
       console.log('✅ Schedule updated successfully in local state - NO PAGE REFRESH')
+      
+      // Provide feedback if assign patient modal is open and staff availability changed
+      if (showAssignPatientModal && scheduleData.hasOwnProperty('isOnDuty')) {
+        const updatedMember = staff.find(m => m._id === staffId)
+        const memberName = updatedMember?.name || 'Staff member'
+        
+        if (scheduleData.isOnDuty) {
+          toast.info(`✅ ${memberName} is now available for patient assignments`)
+        } else {
+          toast.info(`⚠️ ${memberName} is no longer available for new patient assignments`)
+        }
+      }
       
       // Don't show generic success toast here - let calling components handle their own messaging
       // Only close the Schedule modal, not other modals like Calendar
@@ -2705,6 +2726,7 @@ const AssignPatientModal = ({ staff, onClose, onStaffUpdate }) => {
   const [isLoadingPatients, setIsLoadingPatients] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // Dynamically filter available staff based on current duty status and patient load
   const availableStaff = staff.filter(member => 
     member.isOnDuty && (member.assignedPatientsCount || member.assignedPatients?.length || 0) < 5
   )
@@ -2713,6 +2735,15 @@ const AssignPatientModal = ({ staff, onClose, onStaffUpdate }) => {
   const availablePatients = patients.filter(patient => 
     patient.status !== 'discharged'
   )
+
+  // Reset selected staff if they become unavailable due to shift changes
+  useEffect(() => {
+    if (selectedStaff && !availableStaff.find(member => member._id === selectedStaff)) {
+      console.log('🔄 Selected staff member is no longer available, resetting selection')
+      setSelectedStaff('')
+      toast.info('Selected staff member is no longer available. Please select another staff member.')
+    }
+  }, [selectedStaff, availableStaff])
 
   // Load patients when modal opens
   useEffect(() => {
@@ -2832,7 +2863,19 @@ const AssignPatientModal = ({ staff, onClose, onStaffUpdate }) => {
     >
       <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold text-gray-900">Assign Patient to Staff</h2>
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Assign Patient to Staff</h2>
+            <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <span>{availableStaff.length} staff on duty</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <span>{availablePatients.length} patients available</span>
+              </div>
+            </div>
+          </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <X className="w-6 h-6" />
           </button>
@@ -2892,21 +2935,45 @@ const AssignPatientModal = ({ staff, onClose, onStaffUpdate }) => {
 
           {/* Staff Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Assign to Staff *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Assign to Staff * 
+              <span className="text-xs text-gray-500 ml-1">
+                ({availableStaff.length} on duty)
+              </span>
+            </label>
             <select
               value={selectedStaff}
               onChange={(e) => setSelectedStaff(e.target.value)}
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="">Select available staff member</option>
-              {availableStaff.map(member => (
-                <option key={member._id} value={member._id}>
-                  {member.name} ({member.role}) - {member.assignedPatientsCount || 0} patients
-                </option>
-              ))}
+              {availableStaff.map(member => {
+                const patientCount = member.assignedPatientsCount || member.assignedPatients?.length || 0;
+                const shiftDisplay = member.currentShift && member.currentShift !== 'off' 
+                  ? ` - ${member.currentShift} shift` 
+                  : '';
+                return (
+                  <option key={member._id} value={member._id}>
+                    {member.name} ({member.role}) - {patientCount} patients{shiftDisplay}
+                  </option>
+                );
+              })}
             </select>
             {availableStaff.length === 0 && (
-              <p className="text-sm text-red-600 mt-1">No staff members available for assignment</p>
+              <div className="mt-2 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                <p className="text-sm text-orange-800 font-medium">No staff members available for assignment</p>
+                <p className="text-xs text-orange-600 mt-1">
+                  Staff members need to be on duty and have less than 5 assigned patients
+                </p>
+              </div>
+            )}
+            {availableStaff.length > 0 && (
+              <div className="mt-2 text-xs text-gray-600">
+                <div className="flex items-center gap-1">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span>Available staff will update automatically when shifts change</span>
+                </div>
+              </div>
             )}
           </div>
 
