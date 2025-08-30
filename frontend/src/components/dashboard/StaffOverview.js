@@ -207,20 +207,32 @@ export default function StaffOverview({ detailed = false }) {
 
   const handleUpdateSchedule = async (staffId, scheduleData) => {
     try {
+      console.log('🔄 handleUpdateSchedule called - NO REFRESH should happen')
+      console.log('🔄 Updating schedule for staff:', staffId, 'with data:', scheduleData)
+      
       await apiClient.updateStaff(staffId, scheduleData)
       
-      // Update local state
+      // Update local state immediately for UI responsiveness
       setStaff(prev => prev.map(member => 
         member._id === staffId 
           ? { ...member, ...scheduleData }
           : member
       ))
       
-      toast.success('✅ Schedule updated successfully')
-      setShowScheduleModal(false)
+      console.log('✅ Schedule updated successfully in local state - NO PAGE REFRESH')
+      
+      // Don't show generic success toast here - let calling components handle their own messaging
+      // Only close the Schedule modal, not other modals like Calendar
+      if (showScheduleModal) {
+        setShowScheduleModal(false)
+      }
+      
+      // Return success to indicate operation completed
+      return true
     } catch (error) {
-      console.error('Error updating schedule:', error)
-      toast.error('❌ Failed to update schedule')
+      console.error('❌ Error updating schedule (but no refresh should happen):', error)
+      // Don't re-throw the error to prevent page refresh
+      return false
     }
   }
 
@@ -1107,9 +1119,95 @@ const CalendarScheduleModal = ({ staff, selectedStaffId, onClose, onUpdateSchedu
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState(null)
   const [schedules, setSchedules] = useState({})
+  const [isLoading, setIsLoading] = useState(true)
   
   const selectedStaff = staff.find(member => member._id === selectedStaffId)
   const staffRole = selectedStaff?.role || 'other'
+
+  // Add debugging for page refresh detection
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      console.log('⚠️ WARNING: Page is about to refresh/unload - this should NOT happen during schedule assignment!')
+      console.log('⚠️ Current stack trace:', new Error().stack)
+      e.preventDefault()
+      e.returnValue = ''
+      return 'Page is about to refresh - are you sure?'
+    }
+    
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
+  }, [])
+
+  // Load existing schedules when modal opens
+  useEffect(() => {
+    const loadSchedules = async () => {
+      try {
+        setIsLoading(true)
+        
+        // Always check localStorage first for immediate loading
+        const savedSchedules = localStorage.getItem(`schedule_${selectedStaffId}`)
+        let initialSchedules = {}
+        
+        if (savedSchedules) {
+          try {
+            initialSchedules = JSON.parse(savedSchedules)
+            console.log('📱 Loaded schedules from localStorage (immediate):', initialSchedules)
+            setSchedules(initialSchedules)
+            setIsLoading(false)
+          } catch (e) {
+            console.warn('Could not parse saved schedules:', e)
+          }
+        }
+        
+        // Then try to fetch from API for any additional data (but don't override existing)
+        try {
+          const apiSchedules = await apiClient.getStaffSchedule(selectedStaffId)
+          if (apiSchedules && typeof apiSchedules === 'object') {
+            // Merge API data with localStorage data, prioritizing localStorage for conflicts
+            const mergedSchedules = { ...apiSchedules, ...initialSchedules }
+            setSchedules(mergedSchedules)
+            console.log('✅ Merged schedules (localStorage priority):', mergedSchedules)
+            
+            // Update localStorage with merged data
+            localStorage.setItem(`schedule_${selectedStaffId}`, JSON.stringify(mergedSchedules))
+          }
+        } catch (apiError) {
+          console.log('API schedule fetch failed, using localStorage data:', apiError)
+        }
+        
+        // If no localStorage data and API failed, try fallback approach
+        if (Object.keys(initialSchedules).length === 0) {
+          // Add current schedule if available
+          if (selectedStaff?.currentShift && selectedStaff?.currentShift !== 'off') {
+            const today = new Date()
+            initialSchedules[today.toDateString()] = selectedStaff.currentShift
+            setSchedules(initialSchedules)
+          }
+        }
+        
+      } catch (error) {
+        console.error('Error loading schedules:', error)
+        // Set empty schedules on error
+        setSchedules({})
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    
+    if (selectedStaffId) {
+      loadSchedules()
+    }
+  }, [selectedStaffId]) // Removed selectedStaff dependency to prevent unnecessary reloads
+
+  // Save schedules to localStorage whenever they change
+  useEffect(() => {
+    if (Object.keys(schedules).length > 0) {
+      localStorage.setItem(`schedule_${selectedStaffId}`, JSON.stringify(schedules))
+    }
+  }, [schedules, selectedStaffId])
 
   // Get calendar dates for current month
   const getCalendarDays = () => {
@@ -1169,29 +1267,79 @@ const CalendarScheduleModal = ({ staff, selectedStaffId, onClose, onUpdateSchedu
   // Handle date click
   const handleDateClick = (date) => {
     setSelectedDate(date)
+    // Prevent any default behavior
+    return false
   }
 
   // Handle shift assignment
-  const handleAssignShift = (shift) => {
+  const handleAssignShift = async (shift) => {
     if (!selectedDate) {
       toast.error('Please select a date first')
-      return
+      return false
     }
 
-    const dateKey = selectedDate.toDateString()
-    setSchedules(prev => ({
-      ...prev,
-      [dateKey]: shift
-    }))
+    try {
+      const dateKey = selectedDate.toDateString()
+      
+      console.log('🔄 ASSIGNING SHIFT - NO REFRESH SHOULD HAPPEN')
+      console.log('🔄 Date:', dateKey, 'Shift:', shift)
+      
+      // Update local calendar state FIRST for immediate UI feedback
+      const newSchedules = {
+        ...schedules,
+        [dateKey]: shift
+      }
+      setSchedules(newSchedules)
+      
+      // Save to localStorage immediately for persistence
+      localStorage.setItem(`schedule_${selectedStaffId}`, JSON.stringify(newSchedules))
 
-    // Update the staff member's schedule in the database
-    onUpdateSchedule(selectedStaffId, {
-      currentShift: shift,
-      isOnDuty: shift !== 'off',
-      scheduleDate: selectedDate.toISOString().split('T')[0]
-    })
+      // Update the staff member's current schedule in the database
+      const updateSuccess = await onUpdateSchedule(selectedStaffId, {
+        currentShift: shift,
+        isOnDuty: shift !== 'off',
+        scheduleDate: selectedDate.toISOString().split('T')[0]
+      })
 
-    toast.success(`✅ ${shift === 'off' ? 'Off duty' : shift + ' shift'} assigned for ${selectedDate.toLocaleDateString()}`)
+      // Try to save the full schedule data to the schedule API in background
+      // Don't wait for this to complete to avoid delays
+      apiClient.updateStaffSchedule(selectedStaffId, newSchedules)
+        .then(() => {
+          console.log('✅ Schedule saved to API successfully (background operation)')
+        })
+        .catch((scheduleApiError) => {
+          console.log('Schedule API save failed, localStorage already has backup:', scheduleApiError)
+        })
+
+      const staffMember = staff.find(s => s._id === selectedStaffId)
+      const staffName = staffMember?.name || `${staffMember?.firstName} ${staffMember?.lastName}`
+      
+      if (updateSuccess !== false) {
+        toast.success(`✅ ${shift === 'off' ? 'Off duty' : shift + ' shift'} assigned to ${staffName} for ${selectedDate.toLocaleDateString()}`)
+      } else {
+        toast.warning(`⚠️ ${shift === 'off' ? 'Off duty' : shift + ' shift'} assigned locally but database update failed`)
+      }
+      
+      // Clear selected date after assignment for better UX
+      setSelectedDate(null)
+      
+      console.log('✅ SHIFT ASSIGNMENT COMPLETED - NO REFRESH OCCURRED')
+      
+    } catch (error) {
+      console.error('Error assigning shift:', error)
+      toast.error('❌ Failed to assign shift. Please try again.')
+      
+      // Revert local state on error
+      const dateKey = selectedDate.toDateString()
+      setSchedules(prev => {
+        const newState = { ...prev }
+        delete newState[dateKey]
+        return newState
+      })
+    }
+    
+    // Prevent any form submission or navigation
+    return false
   }
 
   // Get shift for a specific date
@@ -1260,7 +1408,12 @@ const CalendarScheduleModal = ({ staff, selectedStaffId, onClose, onUpdateSchedu
             {/* Month Navigation */}
             <div className="flex justify-between items-center mb-4">
               <button
-                onClick={() => navigateMonth(-1)}
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  navigateMonth(-1)
+                }}
                 className="px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
               >
                 ← Previous
@@ -1269,7 +1422,12 @@ const CalendarScheduleModal = ({ staff, selectedStaffId, onClose, onUpdateSchedu
                 {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
               </h3>
               <button
-                onClick={() => navigateMonth(1)}
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  navigateMonth(1)
+                }}
                 className="px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
               >
                 Next →
@@ -1277,18 +1435,24 @@ const CalendarScheduleModal = ({ staff, selectedStaffId, onClose, onUpdateSchedu
             </div>
 
             {/* Calendar Grid */}
-            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-              {/* Day Headers */}
-              <div className="grid grid-cols-7 bg-gray-50">
-                {dayNames.map(day => (
-                  <div key={day} className="p-3 text-center text-sm font-medium text-gray-700 border-r border-gray-200 last:border-r-0">
-                    {day}
-                  </div>
-                ))}
+            {isLoading ? (
+              <div className="bg-white border border-gray-200 rounded-lg p-8 text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-sm text-gray-600">Loading schedule data...</p>
               </div>
+            ) : (
+              <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                {/* Day Headers */}
+                <div className="grid grid-cols-7 bg-gray-50">
+                  {dayNames.map(day => (
+                    <div key={day} className="p-3 text-center text-sm font-medium text-gray-700 border-r border-gray-200 last:border-r-0">
+                      {day}
+                    </div>
+                  ))}
+                </div>
 
-              {/* Calendar Days */}
-              <div className="grid grid-cols-7">
+                {/* Calendar Days */}
+                <div className="grid grid-cols-7">
                 {getCalendarDays().map((date, index) => {
                   const isCurrentMonth = date.getMonth() === currentDate.getMonth()
                   const isToday = date.toDateString() === new Date().toDateString()
@@ -1298,8 +1462,14 @@ const CalendarScheduleModal = ({ staff, selectedStaffId, onClose, onUpdateSchedu
                   return (
                     <div
                       key={index}
-                      onClick={() => isCurrentMonth && handleDateClick(date)}
-                      className={`min-h-[80px] p-2 border-r border-b border-gray-200 last:border-r-0 cursor-pointer transition-colors ${
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        if (isCurrentMonth) {
+                          handleDateClick(date)
+                        }
+                      }}
+                      className={`min-h-[90px] p-2 border-r border-b border-gray-200 last:border-r-0 cursor-pointer transition-colors ${
                         !isCurrentMonth ? 'bg-gray-50 text-gray-400' : 'hover:bg-blue-50'
                       } ${isSelected ? 'bg-blue-100 border-blue-300' : ''} ${isToday ? 'bg-yellow-50' : ''}`}
                     >
@@ -1307,15 +1477,16 @@ const CalendarScheduleModal = ({ staff, selectedStaffId, onClose, onUpdateSchedu
                         {date.getDate()}
                       </div>
                       {shift && isCurrentMonth && (
-                        <div className={`text-xs px-2 py-1 rounded-full ${getShiftColor(shift)}`}>
+                        <div className={`text-xs px-1.5 py-1 rounded-lg flex items-center justify-center text-center font-medium leading-tight whitespace-nowrap ${getShiftColor(shift)}`}>
                           {shift === 'off' ? 'Off' : shift.charAt(0).toUpperCase() + shift.slice(1)}
                         </div>
                       )}
                     </div>
                   )
                 })}
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Shift Assignment Panel */}
@@ -1341,7 +1512,12 @@ const CalendarScheduleModal = ({ staff, selectedStaffId, onClose, onUpdateSchedu
                   {getShiftOptions().map(option => (
                     <button
                       key={option.value}
-                      onClick={() => handleAssignShift(option.value)}
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        handleAssignShift(option.value)
+                      }}
                       className={`w-full text-left px-3 py-2 rounded-lg border transition-colors hover:scale-105 ${option.color} border-gray-300`}
                     >
                       <div className="font-medium">{option.label}</div>
@@ -1356,17 +1532,50 @@ const CalendarScheduleModal = ({ staff, selectedStaffId, onClose, onUpdateSchedu
               </div>
             )}
 
-            {/* Legend */}
-            <div className="mt-6">
-              <h5 className="text-sm font-medium text-gray-700 mb-2">Legend:</h5>
-              <div className="space-y-2">
-                {getShiftOptions().map(option => (
-                  <div key={option.value} className="flex items-center gap-2">
-                    <div className={`w-3 h-3 rounded ${option.color.split(' ')[0]}`}></div>
-                    <span className="text-xs text-gray-600">{option.label}</span>
-                  </div>
-                ))}
+            {/* Legend and Actions */}
+            <div className="mt-6 space-y-4">
+              <div>
+                <h5 className="text-sm font-medium text-gray-700 mb-2">Legend:</h5>
+                <div className="space-y-2">
+                  {getShiftOptions().map(option => (
+                    <div key={option.value} className="flex items-center gap-2">
+                      <div className={`w-4 h-4 rounded-full flex items-center justify-center text-xs font-medium ${option.color}`}></div>
+                      <span className="text-xs text-gray-600">{option.label}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
+
+              {/* Schedule Summary */}
+              {Object.keys(schedules).length > 0 && (
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <h5 className="text-sm font-medium text-blue-800 mb-2">Scheduled Days: {Object.keys(schedules).length}</h5>
+                  <div className="text-xs text-blue-700 space-y-1 max-h-20 overflow-y-auto">
+                    {Object.entries(schedules).slice(0, 3).map(([date, shift]) => (
+                      <div key={date}>{new Date(date).toLocaleDateString()} - {shift}</div>
+                    ))}
+                    {Object.keys(schedules).length > 3 && (
+                      <div className="text-blue-600">... and {Object.keys(schedules).length - 3} more</div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Clear Schedule Button */}
+              {Object.keys(schedules).length > 0 && (
+                <button
+                  onClick={() => {
+                    if (confirm('Are you sure you want to clear all scheduled shifts? This action cannot be undone.')) {
+                      setSchedules({})
+                      localStorage.removeItem(`schedule_${selectedStaffId}`)
+                      toast.success('📅 Schedule cleared successfully')
+                    }
+                  }}
+                  className="w-full px-3 py-2 bg-red-100 text-red-800 border border-red-300 rounded-lg hover:bg-red-200 transition-colors text-sm"
+                >
+                  Clear All Schedules
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -1390,6 +1599,14 @@ const ScheduleShiftModal = ({ staff, preSelectedStaffId, onClose, onUpdateSchedu
   const [selectedStaff, setSelectedStaff] = useState(preSelectedStaffId ? [preSelectedStaffId] : [])
   const [shift, setShift] = useState('morning')
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
+
+  // Reset shift when staff selection changes to ensure valid option
+  useEffect(() => {
+    const currentOptions = getShiftOptions()
+    if (currentOptions.length > 0 && !currentOptions.some(option => option.value === shift)) {
+      setShift(currentOptions[0].value)
+    }
+  }, [selectedStaff])
 
   // Get shift options based on selected staff roles
   const getShiftOptions = () => {
@@ -1440,19 +1657,41 @@ const ScheduleShiftModal = ({ staff, preSelectedStaffId, onClose, onUpdateSchedu
     )
   }
 
-  const handleSchedule = () => {
+  const handleSchedule = async () => {
     if (selectedStaff.length === 0) {
       toast.error('Please select at least one staff member')
       return
     }
 
-    selectedStaff.forEach(staffId => {
-      onUpdateSchedule(staffId, {
-        currentShift: shift,
-        isOnDuty: shift !== 'off',
-        scheduleDate: date
+    if (!date) {
+      toast.error('Please select a date')
+      return
+    }
+
+    try {
+      const updates = selectedStaff.map(async (staffId) => {
+        const staffMember = staff.find(s => s._id === staffId)
+        const staffName = staffMember?.name || `${staffMember?.firstName} ${staffMember?.lastName}`
+        
+        await onUpdateSchedule(staffId, {
+          currentShift: shift,
+          isOnDuty: shift !== 'off',
+          scheduleDate: date
+        })
+        
+        return staffName
       })
-    })
+
+      const staffNames = await Promise.all(updates)
+      const selectedDate = new Date(date).toLocaleDateString()
+      
+      toast.success(`✅ Successfully scheduled ${staffNames.length} staff member${staffNames.length > 1 ? 's' : ''} for ${shift} shift on ${selectedDate}`)
+      
+      onClose()
+    } catch (error) {
+      console.error('Error scheduling staff:', error)
+      toast.error('❌ Failed to schedule staff members. Please try again.')
+    }
   }
 
   return (
@@ -1494,6 +1733,7 @@ const ScheduleShiftModal = ({ staff, preSelectedStaffId, onClose, onUpdateSchedu
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Shift</label>
             <select
+              key={`shift-select-${selectedStaff.join('-')}`}
               value={shift}
               onChange={(e) => setShift(e.target.value)}
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"

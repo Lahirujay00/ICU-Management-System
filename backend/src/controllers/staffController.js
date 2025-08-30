@@ -193,14 +193,68 @@ export const deleteStaff = async (req, res) => {
   }
 };
 
-// Get staff schedule (placeholder)
+// Get staff schedule
 export const getStaffSchedule = async (req, res) => {
-  res.status(200).json({ message: `Schedule for staff ${req.params.id}` });
+  console.log('🔧 BACKEND: Received get schedule request for staff ID:', req.params.id);
+  
+  try {
+    // Check if MongoDB is connected
+    const isMongoConnected = mongoose.connection.readyState === 1;
+    console.log('MongoDB connection state:', mongoose.connection.readyState);
+    
+    if (!isMongoConnected) {
+      console.log('⚠️ MongoDB not connected, returning empty schedule');
+      return res.json({});
+    }
+
+    let staff = await Staff.findById(req.params.id);
+    if (!staff) {
+      console.log('❌ BACKEND: Staff not found with ID:', req.params.id);
+      return sendError(res, 404, 'Staff not found');
+    }
+
+    // Convert Map to plain object for JSON response
+    const schedules = staff.calendarSchedules ? Object.fromEntries(staff.calendarSchedules) : {};
+    console.log('✅ Retrieved calendar schedules for staff:', schedules);
+    res.json(schedules);
+  } catch (err) {
+    console.error('❌ Error fetching staff schedule:', err.message);
+    sendError(res, 500, 'Server error while fetching schedule');
+  }
 };
 
-// Update staff schedule (placeholder)
+// Update staff schedule
 export const updateStaffSchedule = async (req, res) => {
-  res.status(200).json({ message: `Schedule updated for staff ${req.params.id}` });
+  console.log('🔧 BACKEND: Received schedule update request for staff ID:', req.params.id);
+  console.log('Schedule data:', req.body);
+  
+  try {
+    // Check if MongoDB is connected
+    const isMongoConnected = mongoose.connection.readyState === 1;
+    console.log('MongoDB connection state:', mongoose.connection.readyState);
+    
+    if (!isMongoConnected) {
+      console.log('⚠️ MongoDB not connected, using mock response');
+      return res.json({ message: `Mock: Schedule updated for staff ${req.params.id}`, schedules: req.body });
+    }
+
+    let staff = await Staff.findById(req.params.id);
+    if (!staff) {
+      console.log('❌ BACKEND: Staff not found with ID:', req.params.id);
+      return sendError(res, 404, 'Staff not found');
+    }
+
+    // Update the calendarSchedules field (convert object to Map)
+    staff.calendarSchedules = new Map(Object.entries(req.body));
+    await staff.save();
+    
+    const savedSchedules = Object.fromEntries(staff.calendarSchedules);
+    console.log('✅ Calendar schedule updated in database:', savedSchedules);
+    res.json({ message: `Schedule updated for staff ${req.params.id}`, schedules: savedSchedules });
+  } catch (err) {
+    console.error('❌ Error updating staff schedule:', err.message);
+    sendError(res, 500, 'Server error while updating schedule');
+  }
 };
 
 // Get staff's patients (placeholder)

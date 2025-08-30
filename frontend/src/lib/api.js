@@ -144,6 +144,17 @@ class ApiClient {
     })
   }
 
+  async getStaffSchedule(id) {
+    return this.request(`/staff/${id}/schedule`)
+  }
+
+  async updateStaffSchedule(id, scheduleData) {
+    return this.request(`/staff/${id}/schedule`, {
+      method: 'POST',
+      body: JSON.stringify(scheduleData),
+    })
+  }
+
   // Equipment endpoints
   async getEquipment() {
     return this.request('/equipment')
