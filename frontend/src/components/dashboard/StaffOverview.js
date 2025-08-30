@@ -806,16 +806,19 @@ function AddStaffModal({ onClose, onSubmit, isSubmitting }) {
 
   return (
     <div 
-      className="fixed bg-black bg-opacity-50 flex items-center justify-center z-50" 
+      className="flex items-center justify-center"
       style={{ 
+        position: 'fixed',
         top: 0, 
         left: 0, 
         right: 0, 
         bottom: 0, 
         width: '100vw', 
         height: '100vh',
-        position: 'fixed',
-        zIndex: 9999
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        zIndex: 9999,
+        margin: 0,
+        padding: 0
       }}
     >
       <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
@@ -962,7 +965,22 @@ function StaffDetailModal({ staff, onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div 
+      className="flex items-center justify-center"
+      style={{ 
+        position: 'fixed',
+        top: 0, 
+        left: 0, 
+        right: 0, 
+        bottom: 0, 
+        width: '100vw', 
+        height: '100vh',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        zIndex: 9999,
+        margin: 0,
+        padding: 0
+      }}
+    >
       <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-bold text-gray-900">Staff Details</h2>
@@ -1195,7 +1213,22 @@ const CalendarScheduleModal = ({ staff, selectedStaffId, onClose, onUpdateSchedu
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div 
+      className="flex items-center justify-center"
+      style={{ 
+        position: 'fixed',
+        top: 0, 
+        left: 0, 
+        right: 0, 
+        bottom: 0, 
+        width: '100vw', 
+        height: '100vh',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        zIndex: 9999,
+        margin: 0,
+        padding: 0
+      }}
+    >
       <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-bold text-gray-900">
@@ -1423,7 +1456,22 @@ const ScheduleShiftModal = ({ staff, preSelectedStaffId, onClose, onUpdateSchedu
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div 
+      className="flex items-center justify-center"
+      style={{ 
+        position: 'fixed',
+        top: 0, 
+        left: 0, 
+        right: 0, 
+        bottom: 0, 
+        width: '100vw', 
+        height: '100vh',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        zIndex: 9999,
+        margin: 0,
+        padding: 0
+      }}
+    >
       <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-bold text-gray-900">Schedule Staff Shifts</h2>
@@ -1816,7 +1864,22 @@ const AssignPatientModal = ({ staff, onClose }) => {
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div 
+      className="flex items-center justify-center"
+      style={{ 
+        position: 'fixed',
+        top: 0, 
+        left: 0, 
+        right: 0, 
+        bottom: 0, 
+        width: '100vw', 
+        height: '100vh',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        zIndex: 9999,
+        margin: 0,
+        padding: 0
+      }}
+    >
       <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-bold text-gray-900">Assign Patient to Staff</h2>
@@ -1936,7 +1999,22 @@ const TimeOffModal = ({ staff, onClose }) => {
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div 
+      className="flex items-center justify-center"
+      style={{ 
+        position: 'fixed',
+        top: 0, 
+        left: 0, 
+        right: 0, 
+        bottom: 0, 
+        width: '100vw', 
+        height: '100vh',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        zIndex: 9999,
+        margin: 0,
+        padding: 0
+      }}
+    >
       <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-bold text-gray-900">Request Time Off</h2>
@@ -2083,7 +2161,22 @@ const EmergencyAlertModal = ({ staff, onClose }) => {
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div 
+      className="flex items-center justify-center"
+      style={{ 
+        position: 'fixed',
+        top: 0, 
+        left: 0, 
+        right: 0, 
+        bottom: 0, 
+        width: '100vw', 
+        height: '100vh',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        zIndex: 9999,
+        margin: 0,
+        padding: 0
+      }}
+    >
       <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-bold text-red-900 flex items-center gap-2">
