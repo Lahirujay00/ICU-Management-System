@@ -804,6 +804,8 @@ export default function StaffOverview({ detailed = false }) {
           onClose={() => {
             setShowDetailModal(false)
             setSelectedStaff(null)
+            // Refresh staff data after closing modal
+            loadStaff()
           }}
         />
       )}
@@ -1021,6 +1023,9 @@ function AddStaffModal({ onClose, onSubmit, isSubmitting }) {
 
 // Staff Detail Modal Component
 function StaffDetailModal({ staff, onClose }) {
+  const [patientDetails, setPatientDetails] = useState({})
+  const [loadingPatients, setLoadingPatients] = useState(false)
+
   const getRoleDisplayName = (role) => {
     switch (role) {
       case 'doctor': return 'Doctor'
@@ -1031,6 +1036,86 @@ function StaffDetailModal({ staff, onClose }) {
       default: return role
     }
   }
+
+  // Handle unassigning patient from staff
+  const handleUnassignPatient = async (patientId) => {
+    try {
+      // Call the API to unassign patient
+      await apiClient.unassignPatientFromStaff(staff._id, patientId)
+      
+      // Show success message
+      toast.success('✅ Patient unassigned successfully!')
+      
+      // Close modal to refresh the staff data in parent component
+      onClose()
+    } catch (error) {
+      console.error('Error unassigning patient:', error)
+      toast.error('❌ Failed to unassign patient. Please try again.')
+    }
+  }
+
+  // Load patient details for assigned patients
+  useEffect(() => {
+    const loadPatientDetails = async () => {
+      if (!staff.assignedPatients || !Array.isArray(staff.assignedPatients) || staff.assignedPatients.length === 0) {
+        setPatientDetails({})
+        setLoadingPatients(false)
+        return
+      }
+
+      setLoadingPatients(true)
+      try {
+        // Try to get patients from API
+        const patients = await apiClient.getPatients()
+        const patientMap = {}
+        
+        staff.assignedPatients.forEach(assignment => {
+          const patient = patients.find(p => p.patientId === assignment.patientId || p._id === assignment.patientId)
+          if (patient) {
+            patientMap[assignment.patientId] = {
+              patientId: patient.patientId || patient._id,
+              name: patient.name,
+              bedNumber: patient.bedNumber,
+              diagnosis: patient.diagnosis,
+              status: patient.status,
+              priority: assignment.priority,
+              notes: assignment.notes,
+              assignedAt: assignment.assignedAt
+            }
+          }
+        })
+        
+        setPatientDetails(patientMap)
+      } catch (error) {
+        console.log('Failed to load patient details:', error)
+        // Use mock data fallback
+        const mockPatients = apiClient.getMockPatients()
+        const patientMap = {}
+        
+        staff.assignedPatients.forEach(assignment => {
+          const patient = mockPatients.find(p => p.patientId === assignment.patientId || p._id === assignment.patientId)
+          if (patient) {
+            patientMap[assignment.patientId] = {
+              patientId: patient.patientId || patient._id,
+              name: patient.name,
+              bedNumber: patient.bedNumber,
+              diagnosis: patient.diagnosis,
+              status: patient.status,
+              priority: assignment.priority,
+              notes: assignment.notes,
+              assignedAt: assignment.assignedAt
+            }
+          }
+        })
+        
+        setPatientDetails(patientMap)
+      } finally {
+        setLoadingPatients(false)
+      }
+    }
+
+    loadPatientDetails()
+  }, [staff.assignedPatients])
 
   return (
     <div 
@@ -1124,36 +1209,120 @@ function StaffDetailModal({ staff, onClose }) {
             </div>
           </div>
 
-          {/* Statistics */}
+          {/* Statistics and Assigned Patients */}
           <div className="border-t border-gray-200 pt-6">
-            <h4 className="font-semibold text-gray-900 mb-4">Statistics</h4>
+            <h4 className="font-semibold text-gray-900 mb-4">Assigned Patients</h4>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {(() => {
-                const patientCount = staff.assignedPatientsCount ?? 
-                                   (staff.assignedPatients?.length) ?? 
-                                   (typeof staff.assignedPatients === 'number' ? staff.assignedPatients : 0);
-                return (
+            {(() => {
+              const patientCount = staff.assignedPatientsCount ?? 
+                                 (staff.assignedPatients?.length) ?? 
+                                 (typeof staff.assignedPatients === 'number' ? staff.assignedPatients : 0);
+              
+              return (
+                <div className="space-y-4">
+                  {/* Patient Count Summary */}
                   <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                     <div className="flex items-center gap-2 mb-1">
                       <Users className="w-4 h-4 text-blue-500" />
-                      <span className="text-sm font-medium text-blue-800">Assigned Patients</span>
+                      <span className="text-sm font-medium text-blue-800">Total Assigned Patients</span>
                     </div>
                     <p className="text-lg font-bold text-blue-900">{patientCount}</p>
                   </div>
-                );
-              })()}
 
-              {staff.yearsOfService !== undefined && (
-                <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Calendar className="w-4 h-4 text-green-500" />
-                    <span className="text-sm font-medium text-green-800">Years of Service</span>
-                  </div>
-                  <p className="text-lg font-bold text-green-900">{staff.yearsOfService}</p>
+                  {/* Patient Details List */}
+                  {staff.assignedPatients && Array.isArray(staff.assignedPatients) && staff.assignedPatients.length > 0 ? (
+                    <div className="space-y-2">
+                      <h5 className="text-sm font-medium text-gray-700">Patient Details:</h5>
+                      {loadingPatients ? (
+                        <div className="bg-gray-50 rounded-lg p-3 text-center">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                          <p className="text-xs text-gray-500">Loading patient details...</p>
+                        </div>
+                      ) : (
+                        <div className="bg-gray-50 rounded-lg p-3 max-h-48 overflow-y-auto">
+                          {staff.assignedPatients.map((assignment, index) => {
+                            const patientInfo = patientDetails[assignment.patientId];
+                            // Use the actual patient ID from patient info, or fall back to assignment ID
+                            const displayPatientId = patientInfo?.patientId || assignment.patientId || `Patient ${index + 1}`;
+                            
+                            return (
+                              <div key={index} className="flex items-center justify-between py-2 border-b border-gray-200 last:border-b-0">
+                                <div className="flex items-center gap-3">
+                                  <div className={`w-2 h-2 rounded-full ${
+                                    assignment.priority === 'critical' ? 'bg-red-500' :
+                                    assignment.priority === 'high' ? 'bg-orange-500' :
+                                    assignment.priority === 'normal' ? 'bg-blue-500' : 'bg-gray-500'
+                                  }`}></div>
+                                  <div className="flex flex-col">
+                                    <div className="flex items-center gap-2">
+                                      <Shield className="w-3 h-3 text-blue-500" />
+                                      <span className="text-sm font-medium text-blue-900">
+                                        {displayPatientId}
+                                      </span>
+                                    </div>
+                                    {patientInfo ? (
+                                      <div className="text-xs text-gray-600 ml-5">
+                                        <div className="font-medium">{patientInfo.name}</div>
+                                        <div>Bed: {patientInfo.bedNumber}</div>
+                                      </div>
+                                    ) : (
+                                      <div className="text-xs text-gray-500 ml-5">
+                                        Patient details not available
+                                      </div>
+                                    )}
+                                    {assignment.notes && (
+                                      <div className="text-xs text-gray-500 ml-5 mt-1 italic">
+                                        {assignment.notes}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <div className="flex flex-col items-end gap-1">
+                                    {assignment.priority && (
+                                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                        assignment.priority === 'critical' ? 'bg-red-100 text-red-700' :
+                                        assignment.priority === 'high' ? 'bg-orange-100 text-orange-700' :
+                                        assignment.priority === 'normal' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
+                                      }`}>
+                                        {assignment.priority}
+                                      </span>
+                                    )}
+                                    {assignment.assignedAt && (
+                                      <div className="text-xs text-gray-500">
+                                        {new Date(assignment.assignedAt).toLocaleDateString()}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <button
+                                    onClick={() => handleUnassignPatient(assignment.patientId)}
+                                    className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                                    title="Remove patient assignment"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  ) : patientCount > 0 ? (
+                    <div className="bg-gray-50 rounded-lg p-3 text-center">
+                      <p className="text-sm text-gray-600">
+                        {patientCount} patient{patientCount !== 1 ? 's' : ''} assigned
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">Details not available</p>
+                    </div>
+                  ) : (
+                    <div className="bg-gray-50 rounded-lg p-3 text-center">
+                      <p className="text-sm text-gray-600">No patients currently assigned</p>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              );
+            })()}
           </div>
         </div>
 

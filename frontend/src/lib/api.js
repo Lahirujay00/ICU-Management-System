@@ -373,7 +373,12 @@ class ApiClient {
         currentShift: 'morning',
         shift: 'Day',
         status: 'active',
-        assignedPatients: 3,
+        assignedPatients: [
+          { patientId: 'P001', priority: 'critical', notes: 'Requires close monitoring', assignedAt: new Date().toISOString() },
+          { patientId: 'P002', priority: 'normal', notes: 'Post-op care', assignedAt: new Date().toISOString() },
+          { patientId: 'P003', priority: 'high', notes: 'Cardiac monitoring', assignedAt: new Date().toISOString() }
+        ],
+        assignedPatientsCount: 3,
         performanceRating: 4.8,
         hireDate: '2020-03-15',
         yearsOfService: 4,
@@ -395,7 +400,11 @@ class ApiClient {
         currentShift: 'morning',
         shift: 'Day',
         status: 'active',
-        assignedPatients: 4,
+        assignedPatients: [
+          { patientId: 'P002', priority: 'normal', notes: 'Post-operative monitoring', assignedAt: new Date().toISOString() },
+          { patientId: 'P003', priority: 'high', notes: 'Cardiac monitoring support', assignedAt: new Date().toISOString() }
+        ],
+        assignedPatientsCount: 2,
         performanceRating: 4.9,
         hireDate: '2019-07-22',
         yearsOfService: 5,
