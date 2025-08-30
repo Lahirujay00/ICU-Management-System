@@ -34,13 +34,11 @@ export default function StaffOverview({ detailed = false }) {
   const [showAddModal, setShowAddModal] = useState(false)
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [showScheduleModal, setShowScheduleModal] = useState(false)
-  const [showCalendarModal, setShowCalendarModal] = useState(false)
   const [showAssignPatientModal, setShowAssignPatientModal] = useState(false)
   const [showTimeOffModal, setShowTimeOffModal] = useState(false)
   const [showEmergencyModal, setShowEmergencyModal] = useState(false)
   const [selectedStaff, setSelectedStaff] = useState(null)
   const [selectedStaffForSchedule, setSelectedStaffForSchedule] = useState(null)
-  const [selectedStaffForCalendar, setSelectedStaffForCalendar] = useState(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [currentView, setCurrentView] = useState('overview') // 'overview' or 'timetable'
 
@@ -199,12 +197,6 @@ export default function StaffOverview({ detailed = false }) {
     setShowScheduleModal(true)
   }
 
-  const handleOpenCalendar = (staffId) => {
-    console.log('🔧 handleOpenCalendar called with staffId:', staffId);
-    setSelectedStaffForCalendar(staffId);
-    setShowCalendarModal(true);
-  }
-
   const handleUpdateSchedule = async (staffId, scheduleData) => {
     try {
       await apiClient.updateStaff(staffId, scheduleData)
@@ -235,6 +227,7 @@ export default function StaffOverview({ detailed = false }) {
   }
 
   const handleEmergencyCall = () => {
+    console.log('🔧 Opening Emergency Alert modal');
     setShowEmergencyModal(true)
   }
 
@@ -263,6 +256,11 @@ export default function StaffOverview({ detailed = false }) {
     
     const roleMap = shiftMaps[role] || shiftMaps.default
     return roleMap[shift] || shift.charAt(0).toUpperCase() + shift.slice(1)
+  }
+
+  const handleEmergencyCall = () => {
+    console.log('� Opening Emergency Alert modal');
+    setShowEmergencyModal(true)
   }
 
   const getRoleDisplayName = (role) => {
@@ -620,8 +618,8 @@ export default function StaffOverview({ detailed = false }) {
                     
                     <button 
                       className="px-3 py-1.5 bg-purple-100 text-purple-800 rounded-md text-xs font-medium hover:bg-purple-200 transition-all duration-200 flex items-center gap-1 border border-purple-300 hover:scale-105"
-                      onClick={() => handleOpenCalendar(member._id)}
-                      title="Schedule Calendar"
+                      onClick={() => handleScheduleShift(member._id)}
+                      title="Schedule Shift"
                     >
                       <Calendar className="w-3 h-3" />
                     </button>
@@ -755,19 +753,6 @@ export default function StaffOverview({ detailed = false }) {
         />
       )}
 
-      {/* Calendar Schedule Modal */}
-      {showCalendarModal && (
-        <CalendarScheduleModal 
-          staff={staff}
-          selectedStaffId={selectedStaffForCalendar}
-          onClose={() => {
-            setShowCalendarModal(false)
-            setSelectedStaffForCalendar(null)
-          }}
-          onUpdateSchedule={handleUpdateSchedule}
-        />
-      )}
-
       {/* Assign Patient Modal */}
       {showAssignPatientModal && (
         <AssignPatientModal 
@@ -805,7 +790,7 @@ function AddStaffModal({ onClose, onSubmit, isSubmitting }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 h-full">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold text-gray-900">Add New Staff Member</h2>
@@ -1065,274 +1050,6 @@ function StaffDetailModal({ staff, onClose }) {
             className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
           >
             Close
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// Calendar Schedule Modal Component
-const CalendarScheduleModal = ({ staff, selectedStaffId, onClose, onUpdateSchedule }) => {
-  const [currentDate, setCurrentDate] = useState(new Date())
-  const [selectedDate, setSelectedDate] = useState(null)
-  const [schedules, setSchedules] = useState({})
-  
-  const selectedStaff = staff.find(member => member._id === selectedStaffId)
-  const staffRole = selectedStaff?.role || 'other'
-
-  // Get calendar dates for current month
-  const getCalendarDays = () => {
-    const year = currentDate.getFullYear()
-    const month = currentDate.getMonth()
-    const firstDay = new Date(year, month, 1)
-    const lastDay = new Date(year, month + 1, 0)
-    const startDate = new Date(firstDay)
-    startDate.setDate(startDate.getDate() - firstDay.getDay())
-    
-    const days = []
-    const current = new Date(startDate)
-    
-    for (let i = 0; i < 42; i++) {
-      days.push(new Date(current))
-      current.setDate(current.getDate() + 1)
-    }
-    
-    return days
-  }
-
-  // Navigate months
-  const navigateMonth = (direction) => {
-    const newDate = new Date(currentDate)
-    newDate.setMonth(currentDate.getMonth() + direction)
-    setCurrentDate(newDate)
-  }
-
-  // Get shift options based on role
-  const getShiftOptions = () => {
-    switch (staffRole) {
-      case 'nurse':
-        return [
-          { value: 'morning', label: 'Morning (7AM-1PM)', color: 'bg-blue-100 text-blue-800' },
-          { value: 'afternoon', label: 'Afternoon (1PM-7PM)', color: 'bg-green-100 text-green-800' },
-          { value: 'night', label: 'Night (7PM-7AM)', color: 'bg-purple-100 text-purple-800' },
-          { value: 'off', label: 'Off Duty', color: 'bg-gray-100 text-gray-800' }
-        ]
-      case 'doctor':
-        return [
-          { value: 'morning', label: 'Morning (8AM-4PM)', color: 'bg-blue-100 text-blue-800' },
-          { value: 'afternoon', label: 'Afternoon (1PM-7PM)', color: 'bg-green-100 text-green-800' },
-          { value: 'night', label: 'Night (7PM-7AM)', color: 'bg-purple-100 text-purple-800' },
-          { value: 'emergency', label: 'Emergency (24h)', color: 'bg-red-100 text-red-800' },
-          { value: 'off', label: 'Off Duty', color: 'bg-gray-100 text-gray-800' }
-        ]
-      default:
-        return [
-          { value: 'morning', label: 'Morning (7AM-3PM)', color: 'bg-blue-100 text-blue-800' },
-          { value: 'afternoon', label: 'Afternoon (3PM-11PM)', color: 'bg-green-100 text-green-800' },
-          { value: 'night', label: 'Night (11PM-7AM)', color: 'bg-purple-100 text-purple-800' },
-          { value: 'off', label: 'Off Duty', color: 'bg-gray-100 text-gray-800' }
-        ]
-    }
-  }
-
-  // Handle date click
-  const handleDateClick = (date) => {
-    setSelectedDate(date)
-  }
-
-  // Handle shift assignment
-  const handleAssignShift = (shift) => {
-    if (!selectedDate) {
-      toast.error('Please select a date first')
-      return
-    }
-
-    const dateKey = selectedDate.toDateString()
-    setSchedules(prev => ({
-      ...prev,
-      [dateKey]: shift
-    }))
-
-    // Update the staff member's schedule in the database
-    onUpdateSchedule(selectedStaffId, {
-      currentShift: shift,
-      isOnDuty: shift !== 'off',
-      scheduleDate: selectedDate.toISOString().split('T')[0]
-    })
-
-    toast.success(`✅ ${shift === 'off' ? 'Off duty' : shift + ' shift'} assigned for ${selectedDate.toLocaleDateString()}`)
-  }
-
-  // Get shift for a specific date
-  const getShiftForDate = (date) => {
-    return schedules[date.toDateString()] || null
-  }
-
-  // Get shift color
-  const getShiftColor = (shift) => {
-    const option = getShiftOptions().find(opt => opt.value === shift)
-    return option?.color || 'bg-gray-100 text-gray-800'
-  }
-
-  const monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ]
-
-  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold text-gray-900">
-            Schedule Calendar - {selectedStaff?.name || selectedStaff?.firstName + ' ' + selectedStaff?.lastName}
-          </h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <X className="w-6 h-6" />
-          </button>
-        </div>
-
-        {/* Staff Info */}
-        <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-          <div className="flex items-center gap-4">
-            <div className={`w-4 h-4 rounded-full ${selectedStaff?.isOnDuty ? 'bg-green-500' : 'bg-gray-400'}`}></div>
-            <div>
-              <p className="font-medium text-gray-900">
-                {selectedStaff?.name || selectedStaff?.firstName + ' ' + selectedStaff?.lastName}
-              </p>
-              <p className="text-sm text-gray-600 capitalize">
-                {selectedStaff?.role} - {selectedStaff?.department}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Calendar */}
-          <div className="lg:col-span-2">
-            {/* Month Navigation */}
-            <div className="flex justify-between items-center mb-4">
-              <button
-                onClick={() => navigateMonth(-1)}
-                className="px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
-              >
-                ← Previous
-              </button>
-              <h3 className="text-lg font-semibold text-gray-900">
-                {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
-              </h3>
-              <button
-                onClick={() => navigateMonth(1)}
-                className="px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
-              >
-                Next →
-              </button>
-            </div>
-
-            {/* Calendar Grid */}
-            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-              {/* Day Headers */}
-              <div className="grid grid-cols-7 bg-gray-50">
-                {dayNames.map(day => (
-                  <div key={day} className="p-3 text-center text-sm font-medium text-gray-700 border-r border-gray-200 last:border-r-0">
-                    {day}
-                  </div>
-                ))}
-              </div>
-
-              {/* Calendar Days */}
-              <div className="grid grid-cols-7">
-                {getCalendarDays().map((date, index) => {
-                  const isCurrentMonth = date.getMonth() === currentDate.getMonth()
-                  const isToday = date.toDateString() === new Date().toDateString()
-                  const isSelected = selectedDate && date.toDateString() === selectedDate.toDateString()
-                  const shift = getShiftForDate(date)
-
-                  return (
-                    <div
-                      key={index}
-                      onClick={() => isCurrentMonth && handleDateClick(date)}
-                      className={`min-h-[80px] p-2 border-r border-b border-gray-200 last:border-r-0 cursor-pointer transition-colors ${
-                        !isCurrentMonth ? 'bg-gray-50 text-gray-400' : 'hover:bg-blue-50'
-                      } ${isSelected ? 'bg-blue-100 border-blue-300' : ''} ${isToday ? 'bg-yellow-50' : ''}`}
-                    >
-                      <div className={`text-sm font-medium mb-1 ${isToday ? 'text-blue-600' : ''}`}>
-                        {date.getDate()}
-                      </div>
-                      {shift && isCurrentMonth && (
-                        <div className={`text-xs px-2 py-1 rounded-full ${getShiftColor(shift)}`}>
-                          {shift === 'off' ? 'Off' : shift.charAt(0).toUpperCase() + shift.slice(1)}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-
-          {/* Shift Assignment Panel */}
-          <div>
-            <h4 className="text-lg font-semibold text-gray-900 mb-4">Assign Shift</h4>
-            
-            {selectedDate ? (
-              <div className="space-y-4">
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-sm text-blue-800">
-                    <strong>Selected Date:</strong><br />
-                    {selectedDate.toLocaleDateString('en-US', { 
-                      weekday: 'long',
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric'
-                    })}
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-gray-700">Available Shifts:</p>
-                  {getShiftOptions().map(option => (
-                    <button
-                      key={option.value}
-                      onClick={() => handleAssignShift(option.value)}
-                      className={`w-full text-left px-3 py-2 rounded-lg border transition-colors hover:scale-105 ${option.color} border-gray-300`}
-                    >
-                      <div className="font-medium">{option.label}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg text-center">
-                <Calendar className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                <p className="text-sm text-gray-600">Click on a date to assign a shift</p>
-              </div>
-            )}
-
-            {/* Legend */}
-            <div className="mt-6">
-              <h5 className="text-sm font-medium text-gray-700 mb-2">Legend:</h5>
-              <div className="space-y-2">
-                {getShiftOptions().map(option => (
-                  <div key={option.value} className="flex items-center gap-2">
-                    <div className={`w-3 h-3 rounded ${option.color.split(' ')[0]}`}></div>
-                    <span className="text-xs text-gray-600">{option.label}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
-          >
-            Close Calendar
           </button>
         </div>
       </div>
@@ -2193,4 +1910,3 @@ const EmergencyAlertModal = ({ staff, onClose }) => {
     </div>
   )
 }
-
