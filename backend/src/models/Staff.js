@@ -51,7 +51,16 @@ const staffSchema = new mongoose.Schema({
   },
   
   // Work Assignment
-  assignedPatients: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Patient' }],
+  assignedPatients: [{
+    patientId: { type: mongoose.Schema.Types.ObjectId, ref: 'Patient', required: true },
+    priority: { 
+      type: String, 
+      enum: ['low', 'normal', 'high', 'critical'], 
+      default: 'normal' 
+    },
+    notes: { type: String, default: '' },
+    assignedAt: { type: Date, default: Date.now }
+  }],
   isOnDuty: { 
     type: Boolean, 
     default: false 

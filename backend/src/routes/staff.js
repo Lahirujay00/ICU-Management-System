@@ -47,6 +47,10 @@ router.post('/:id/schedule', staffController.updateStaffSchedule); // Removed ro
 router.get('/:id/patients', staffController.getStaffPatients);
 router.put('/:id/status', staffController.updateStaffStatus); // Removed roleMiddleware for development
 
+// Patient assignment operations
+router.post('/:id/assign-patient', staffController.assignPatientToStaff);
+router.post('/:id/unassign-patient', staffController.unassignPatientFromStaff);
+
 // Search and filtering
 router.get('/search/query', staffController.searchStaff);
 router.get('/filter/role/:role', staffController.filterStaffByRole);

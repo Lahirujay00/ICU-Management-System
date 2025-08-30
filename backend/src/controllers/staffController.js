@@ -349,3 +349,119 @@ export const getDepartments = async (req, res) => {
 export const createDepartment = async (req, res) => {
   res.status(200).json({ message: 'Department created' });
 };
+
+// Assign patient to staff
+export const assignPatientToStaff = async (req, res) => {
+  try {
+    const staffId = req.params.id;
+    const { patientId, priority = 'normal', notes = '', assignedAt } = req.body;
+
+    console.log('🔧 Assigning patient to staff:', { staffId, patientId, priority, notes });
+
+    // Check if MongoDB is connected
+    const isMongoConnected = mongoose.connection.readyState === 1;
+    if (!isMongoConnected) {
+      console.log('⚠️ MongoDB not connected, simulating assignment success');
+      return res.json({ 
+        message: 'Patient assigned successfully (demo mode)', 
+        staffId, 
+        patientId, 
+        priority, 
+        notes,
+        assignedAt: assignedAt || new Date().toISOString()
+      });
+    }
+
+    // Validate staff exists
+    const staff = await Staff.findById(staffId);
+    if (!staff) {
+      return sendError(res, 404, 'Staff member not found');
+    }
+
+    // Check if patient is already assigned to this staff member
+    const isAlreadyAssigned = staff.assignedPatients.some(
+      assignment => assignment.patientId.toString() === patientId
+    );
+
+    if (isAlreadyAssigned) {
+      return sendError(res, 400, 'Patient is already assigned to this staff member');
+    }
+
+    // Add patient assignment
+    const patientAssignment = {
+      patientId,
+      priority,
+      notes,
+      assignedAt: assignedAt || new Date()
+    };
+
+    staff.assignedPatients.push(patientAssignment);
+    await staff.save();
+
+    console.log('✅ Patient assigned successfully to staff member');
+    res.json({ 
+      message: 'Patient assigned successfully', 
+      staffId, 
+      patientId, 
+      priority, 
+      notes,
+      assignedPatientsCount: staff.assignedPatients.length
+    });
+
+  } catch (err) {
+    console.error('❌ Error assigning patient to staff:', err.message);
+    sendError(res, 500, 'Server error while assigning patient to staff');
+  }
+};
+
+// Unassign patient from staff
+export const unassignPatientFromStaff = async (req, res) => {
+  try {
+    const staffId = req.params.id;
+    const { patientId } = req.body;
+
+    console.log('🔧 Unassigning patient from staff:', { staffId, patientId });
+
+    // Check if MongoDB is connected
+    const isMongoConnected = mongoose.connection.readyState === 1;
+    if (!isMongoConnected) {
+      console.log('⚠️ MongoDB not connected, simulating unassignment success');
+      return res.json({ 
+        message: 'Patient unassigned successfully (demo mode)', 
+        staffId, 
+        patientId
+      });
+    }
+
+    // Validate staff exists
+    const staff = await Staff.findById(staffId);
+    if (!staff) {
+      return sendError(res, 404, 'Staff member not found');
+    }
+
+    // Check if patient is assigned to this staff member
+    const assignmentIndex = staff.assignedPatients.findIndex(
+      assignment => assignment.patientId.toString() === patientId
+    );
+
+    if (assignmentIndex === -1) {
+      return sendError(res, 400, 'Patient is not assigned to this staff member');
+    }
+
+    // Remove patient assignment
+    staff.assignedPatients.splice(assignmentIndex, 1);
+    await staff.save();
+
+    console.log('✅ Patient unassigned successfully from staff member');
+    res.json({ 
+      message: 'Patient unassigned successfully', 
+      staffId, 
+      patientId,
+      assignedPatientsCount: staff.assignedPatients.length
+    });
+
+  } catch (err) {
+    console.error('❌ Error unassigning patient from staff:', err.message);
+    sendError(res, 500, 'Server error while unassigning patient from staff');
+  }
+};
