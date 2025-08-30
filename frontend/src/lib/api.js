@@ -148,6 +148,25 @@ class ApiClient {
     return this.request(`/staff/${id}/schedule`)
   }
 
+  async assignPatientToStaff(staffId, patientId, assignmentData = {}) {
+    console.log('🔧 API: Assigning patient to staff:', { staffId, patientId, assignmentData })
+    return this.request(`/staff/${staffId}/assign-patient`, {
+      method: 'POST',
+      body: JSON.stringify({
+        patientId,
+        ...assignmentData
+      }),
+    })
+  }
+
+  async unassignPatientFromStaff(staffId, patientId) {
+    console.log('🔧 API: Unassigning patient from staff:', { staffId, patientId })
+    return this.request(`/staff/${staffId}/unassign-patient`, {
+      method: 'POST',
+      body: JSON.stringify({ patientId }),
+    })
+  }
+
   async updateStaffSchedule(id, scheduleData) {
     return this.request(`/staff/${id}/schedule`, {
       method: 'POST',
@@ -279,7 +298,7 @@ class ApiClient {
         gender: 'male',
         diagnosis: 'Cardiac monitoring post-MI',
         bedNumber: '103',
-        status: 'improving',
+        status: 'observation',
         admissionDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
         attendingPhysician: 'Dr. Emily Rodriguez',
         vitalSigns: {
@@ -290,6 +309,48 @@ class ApiClient {
         allergies: ['Sulfa drugs'],
         medicalHistory: ['Myocardial Infarction', 'Hypertension'],
         medications: ['Aspirin', 'Metoprolol']
+      },
+      {
+        _id: '4',
+        name: 'Robert Brown',
+        patientId: 'P004',
+        age: 73,
+        gender: 'male',
+        diagnosis: 'Recovery complete',
+        bedNumber: '104',
+        status: 'discharged',
+        admissionDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+        dischargeDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+        attendingPhysician: 'Dr. Michael Chen',
+        vitalSigns: {
+          heartRate: 75,
+          bloodPressure: 125,
+          oxygenSaturation: 97
+        },
+        allergies: [],
+        medicalHistory: ['Hip replacement'],
+        medications: []
+      },
+      {
+        _id: '5',
+        name: 'Lisa Martinez',
+        patientId: 'P005',
+        age: 35,
+        gender: 'female',
+        diagnosis: 'Pneumonia treatment completed',
+        bedNumber: '105',
+        status: 'discharged',
+        admissionDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+        dischargeDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+        attendingPhysician: 'Dr. Sarah Williams',
+        vitalSigns: {
+          heartRate: 70,
+          bloodPressure: 115,
+          oxygenSaturation: 99
+        },
+        allergies: ['Latex'],
+        medicalHistory: ['Pneumonia'],
+        medications: []
       }
     ]
   }

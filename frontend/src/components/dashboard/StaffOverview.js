@@ -840,6 +840,7 @@ export default function StaffOverview({ detailed = false }) {
         <AssignPatientModal 
           staff={staff}
           onClose={() => setShowAssignPatientModal(false)}
+          onStaffUpdate={setStaff}
         />
       )}
 
@@ -2524,29 +2525,123 @@ const ScheduleShiftModal = ({ staff, preSelectedStaffId, onClose, onUpdateSchedu
 }
 
 // Assign Patient Modal Component
-const AssignPatientModal = ({ staff, onClose }) => {
+const AssignPatientModal = ({ staff, onClose, onStaffUpdate }) => {
   const [selectedStaff, setSelectedStaff] = useState('')
+  const [selectedPatientId, setSelectedPatientId] = useState('')
   const [patientName, setPatientName] = useState('')
-  const [patientId, setPatientId] = useState('')
+  const [bedNumber, setBedNumber] = useState('')
   const [priority, setPriority] = useState('normal')
   const [notes, setNotes] = useState('')
+  const [patients, setPatients] = useState([])
+  const [isLoadingPatients, setIsLoadingPatients] = useState(true)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const availableStaff = staff.filter(member => 
     member.isOnDuty && (member.assignedPatientsCount || member.assignedPatients?.length || 0) < 5
   )
 
-  const handleAssign = () => {
-    if (!selectedStaff || !patientName) {
-      toast.error('Please fill in all required fields')
+  // Filter out discharged patients
+  const availablePatients = patients.filter(patient => 
+    patient.status !== 'discharged'
+  )
+
+  // Load patients when modal opens
+  useEffect(() => {
+    const loadPatients = async () => {
+      try {
+        setIsLoadingPatients(true)
+        // Try to load from API first
+        const apiData = await apiClient.getPatients()
+        setPatients(apiData)
+        console.log(`✅ Loaded ${apiData.length} patients from database`)
+      } catch (apiError) {
+        console.log('Patient API failed, using mock data:', apiError)
+        // Fallback to mock data when database is not connected
+        const mockData = apiClient.getMockPatients()
+        setPatients(mockData)
+        console.log(`📝 Using ${mockData.length} mock patients`)
+      } finally {
+        setIsLoadingPatients(false)
+      }
+    }
+    
+    loadPatients()
+  }, [])
+
+  // Handle patient selection and auto-populate fields
+  const handlePatientSelection = (patientId) => {
+    setSelectedPatientId(patientId)
+    
+    if (patientId) {
+      const selectedPatient = availablePatients.find(p => p._id === patientId)
+      if (selectedPatient) {
+        setPatientName(selectedPatient.name)
+        setBedNumber(selectedPatient.bedNumber || 'Not assigned')
+      }
+    } else {
+      setPatientName('')
+      setBedNumber('')
+    }
+  }
+
+  const handleAssign = async () => {
+    if (!selectedStaff || !selectedPatientId) {
+      toast.error('Please select both a staff member and a patient')
       return
     }
 
-    const staffMember = staff.find(s => s._id === selectedStaff)
-    toast.success(`✅ Patient "${patientName}" assigned to ${staffMember?.name}`)
-    
-    // TODO: Implement actual patient assignment API call
-    console.log('Assigning patient:', { patientName, patientId, selectedStaff, priority, notes })
-    onClose()
+    setIsSubmitting(true)
+    try {
+      const staffMember = staff.find(s => s._id === selectedStaff)
+      const selectedPatient = availablePatients.find(p => p._id === selectedPatientId)
+      
+      // Prepare assignment data
+      const assignmentData = {
+        priority,
+        notes,
+        assignedAt: new Date().toISOString()
+      }
+
+      // Try to assign via API
+      try {
+        await apiClient.assignPatientToStaff(selectedStaff, selectedPatientId, assignmentData)
+        
+        // Update staff member's patient count in local state
+        onStaffUpdate(prevStaff => 
+          prevStaff.map(member => 
+            member._id === selectedStaff 
+              ? { 
+                  ...member, 
+                  assignedPatientsCount: (member.assignedPatientsCount || 0) + 1
+                }
+              : member
+          )
+        )
+        
+        toast.success(`✅ Patient "${patientName}" assigned to ${staffMember?.name}`)
+      } catch (apiError) {
+        console.error('Patient assignment API failed:', apiError)
+        toast.error('❌ Failed to assign patient to staff member')
+        return
+      }
+      
+      console.log('Patient assignment:', { 
+        staffId: selectedStaff, 
+        staffName: staffMember?.name,
+        patientId: selectedPatientId, 
+        patientName, 
+        bedNumber,
+        priority, 
+        notes 
+      })
+      
+      onClose()
+    } catch (error) {
+      console.error('Error assigning patient:', error)
+      toast.error('❌ Failed to assign patient')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -2575,28 +2670,58 @@ const AssignPatientModal = ({ staff, onClose }) => {
         </div>
 
         <div className="space-y-4">
+          {/* Patient Selection Dropdown */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Patient Name *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Select Patient *</label>
+            {isLoadingPatients ? (
+              <div className="w-full p-3 border border-gray-300 rounded-lg bg-gray-50 flex items-center gap-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                <span className="text-sm text-gray-600">Loading patients...</span>
+              </div>
+            ) : (
+              <select
+                value={selectedPatientId}
+                onChange={(e) => handlePatientSelection(e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Select a patient</option>
+                {availablePatients.map(patient => (
+                  <option key={patient._id} value={patient._id}>
+                    {patient.patientId} - {patient.name} ({patient.status})
+                  </option>
+                ))}
+              </select>
+            )}
+            {availablePatients.length === 0 && !isLoadingPatients && (
+              <p className="text-sm text-red-600 mt-1">No patients available for assignment (all patients may be discharged)</p>
+            )}
+          </div>
+
+          {/* Auto-populated Patient Name */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Patient Name</label>
             <input
               type="text"
               value={patientName}
-              onChange={(e) => setPatientName(e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Enter patient name"
+              readOnly
+              className="w-full p-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-700"
+              placeholder="Will be filled automatically when patient is selected"
             />
           </div>
 
+          {/* Auto-populated Bed Number */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Patient ID</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Bed Number</label>
             <input
               type="text"
-              value={patientId}
-              onChange={(e) => setPatientId(e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Enter patient ID (optional)"
+              value={bedNumber}
+              readOnly
+              className="w-full p-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-700"
+              placeholder="Will be filled automatically when patient is selected"
             />
           </div>
 
+          {/* Staff Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Assign to Staff *</label>
             <select
@@ -2616,6 +2741,7 @@ const AssignPatientModal = ({ staff, onClose }) => {
             )}
           </div>
 
+          {/* Priority Level */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Priority Level</label>
             <select
@@ -2630,6 +2756,7 @@ const AssignPatientModal = ({ staff, onClose }) => {
             </select>
           </div>
 
+          {/* Notes */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
             <textarea
@@ -2651,10 +2778,17 @@ const AssignPatientModal = ({ staff, onClose }) => {
           </button>
           <button
             onClick={handleAssign}
-            disabled={!selectedStaff || !patientName || availableStaff.length === 0}
-            className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+            disabled={!selectedStaff || !selectedPatientId || availableStaff.length === 0 || availablePatients.length === 0 || isSubmitting}
+            className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
           >
-            Assign Patient
+            {isSubmitting ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                Assigning...
+              </>
+            ) : (
+              'Assign Patient'
+            )}
           </button>
         </div>
       </div>
