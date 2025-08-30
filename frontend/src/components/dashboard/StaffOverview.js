@@ -20,7 +20,9 @@ import {
   X,
   Check,
   MapPin,
-  Shield
+  Shield,
+  Download,
+  Printer
 } from 'lucide-react'
 import { apiClient } from '@/lib/api'
 import { useForm } from 'react-hook-form'
@@ -779,20 +781,11 @@ export default function StaffOverview({ detailed = false }) {
 
       {/* Timetable View */}
       {currentView === 'timetable' && (
-        <>
-          {console.log('🔧 Rendering timetable view, currentView:', currentView)}
-          {console.log('🔧 Staff data for timetable:', staff)}
-          <div className="bg-blue-50 p-4 rounded-lg mb-4">
-            <p className="text-blue-800">🔧 Debug: Timetable view is active. Staff count: {staff.length}</p>
-            <p className="text-blue-800">🔧 Debug: Schedule loading: {isLoadingSchedules ? 'Loading...' : 'Complete'}</p>
-            <p className="text-blue-800">🔧 Debug: Schedule data keys: {Object.keys(staffSchedules).join(', ')}</p>
-          </div>
-          <StaffTimetableView 
-            staff={staff} 
-            staffSchedules={staffSchedules}
-            isLoadingSchedules={isLoadingSchedules}
-          />
-        </>
+        <StaffTimetableView 
+          staff={staff} 
+          staffSchedules={staffSchedules}
+          isLoadingSchedules={isLoadingSchedules}
+        />
       )}
 
       {/* Add Staff Modal */}
@@ -1925,17 +1918,12 @@ const ScheduleShiftModal = ({ staff, preSelectedStaffId, onClose, onUpdateSchedu
 
 // Staff Timetable View Component
   const StaffTimetableView = ({ staff, staffSchedules, isLoadingSchedules }) => {
-    console.log('🔧 StaffTimetableView component loaded with staff:', staff)
-    console.log('🔧 StaffTimetableView received staffSchedules prop:', staffSchedules)
-    console.log('🔧 StaffTimetableView received isLoadingSchedules prop:', isLoadingSchedules)
-    
     const [selectedRole, setSelectedRole] = useState('all')
     const [selectedWeek, setSelectedWeek] = useState(0) // 0 = current week, 1 = next week
     // Remove duplicate staffSchedules state - use parent component's state instead
   
   // Safety check for empty staff data
   if (!staff || staff.length === 0) {
-    console.log('🔧 No staff data available, showing empty state')
     return (
       <div className="bg-white border border-gray-200 rounded-lg p-8 text-center">
         <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-4" />
@@ -2010,6 +1998,171 @@ const ScheduleShiftModal = ({ staff, preSelectedStaffId, onClose, onUpdateSchedu
   const filteredStaff = selectedRole === 'all' 
     ? staff 
     : staff.filter(member => member.role === selectedRole)
+
+  // Handler functions for export and print
+  const handleExportSchedule = () => {
+    try {
+      // Prepare schedule data for export
+      const scheduleData = {
+        exportDate: new Date().toLocaleDateString(),
+        weekRange: `${getWeekDays()[0].toLocaleDateString()} - ${getWeekDays()[6].toLocaleDateString()}`,
+        staff: filteredStaff.map(staffMember => ({
+          name: staffMember.name || `${staffMember.firstName} ${staffMember.lastName}`,
+          role: staffMember.role,
+          department: staffMember.department,
+          schedule: getWeekDays().map(day => ({
+            date: day.toLocaleDateString(),
+            dayName: day.toLocaleDateString('en-US', { weekday: 'long' }),
+            shift: getShiftForStaff(staffMember, day.toLocaleDateString('en-US', { weekday: 'long' }), day)?.name || 'Off',
+            time: getShiftForStaff(staffMember, day.toLocaleDateString('en-US', { weekday: 'long' }), day)?.time || '-'
+          }))
+        }))
+      }
+
+      // Convert to CSV format
+      const csvHeaders = ['Staff Name', 'Role', 'Department', ...getWeekDays().map(day => 
+        day.toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' })
+      )]
+      
+      const csvRows = scheduleData.staff.map(staff => [
+        staff.name,
+        staff.role,
+        staff.department,
+        ...staff.schedule.map(day => `${day.shift} (${day.time})`)
+      ])
+
+      const csvContent = [
+        csvHeaders.join(','),
+        ...csvRows.map(row => row.join(','))
+      ].join('\n')
+
+      // Create and download file
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const link = document.createElement('a')
+      if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob)
+        link.setAttribute('href', url)
+        link.setAttribute('download', `ICU-Staff-Schedule-${new Date().toISOString().split('T')[0]}.csv`)
+        link.style.visibility = 'hidden'
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+      }
+
+      // Show success message
+      toast.success('✅ Schedule exported successfully!')
+    } catch (error) {
+      console.error('Export failed:', error)
+      toast.error('❌ Failed to export schedule')
+    }
+  }
+
+  const handlePrintTimetable = () => {
+    try {
+      // Create printable content
+      const printContent = `
+        <html>
+          <head>
+            <title>ICU Staff Timetable</title>
+            <style>
+              body { font-family: Arial, sans-serif; margin: 20px; }
+              .header { text-align: center; margin-bottom: 30px; }
+              .week-info { text-align: center; margin-bottom: 20px; color: #666; }
+              table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+              th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+              th { background-color: #f5f5f5; font-weight: bold; }
+              .shift-morning { background-color: #e3f2fd; }
+              .shift-afternoon { background-color: #e8f5e8; }
+              .shift-night { background-color: #f3e5f5; }
+              .shift-off { background-color: #f5f5f5; color: #999; }
+              .role-badge { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 11px; }
+              .doctor { background-color: #e3f2fd; }
+              .nurse { background-color: #e8f5e8; }
+              @media print { .no-print { display: none; } }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <h1>ICU Staff Timetable</h1>
+              <div class="week-info">
+                Week: ${getWeekDays()[0].toLocaleDateString()} - ${getWeekDays()[6].toLocaleDateString()}<br>
+                Generated: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}
+              </div>
+            </div>
+            
+            <table>
+              <thead>
+                <tr>
+                  <th>Staff Member</th>
+                  <th>Role</th>
+                  ${getWeekDays().map(day => 
+                    `<th>${day.toLocaleDateString('en-US', { weekday: 'short' })}<br>${day.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' })}</th>`
+                  ).join('')}
+                </tr>
+              </thead>
+              <tbody>
+                ${filteredStaff.map(staffMember => {
+                  const shifts = getWeekDays().map(day => {
+                    const shift = getShiftForStaff(staffMember, day.toLocaleDateString('en-US', { weekday: 'long' }), day)
+                    return shift ? `${shift.name}<br><small>${shift.time}</small>` : 'Off'
+                  })
+                  
+                  return `
+                    <tr>
+                      <td><strong>${staffMember.name || `${staffMember.firstName} ${staffMember.lastName}`}</strong></td>
+                      <td><span class="role-badge ${staffMember.role}">${staffMember.role}</span></td>
+                      ${shifts.map(shift => `<td>${shift}</td>`).join('')}
+                    </tr>
+                  `
+                }).join('')}
+              </tbody>
+            </table>
+            
+            <div style="margin-top: 30px; font-size: 12px; color: #666;">
+              <p><strong>Shift Legend:</strong></p>
+              <ul>
+                <li>Morning: 7:00 AM - 3:00 PM</li>
+                <li>Afternoon: 3:00 PM - 11:00 PM</li>
+                <li>Night: 11:00 PM - 7:00 AM</li>
+              </ul>
+            </div>
+          </body>
+        </html>
+      `
+
+      // Open print window
+      const printWindow = window.open('', '_blank')
+      printWindow.document.write(printContent)
+      printWindow.document.close()
+      printWindow.focus()
+      
+      // Trigger print dialog
+      setTimeout(() => {
+        printWindow.print()
+        printWindow.close()
+      }, 250)
+
+      toast.success('✅ Print dialog opened!')
+    } catch (error) {
+      console.error('Print failed:', error)
+      toast.error('❌ Failed to open print dialog')
+    }
+  }
+
+  // Get week days for current selected week
+  const getWeekDays = () => {
+    const today = new Date()
+    const currentWeekStart = new Date(today.setDate(today.getDate() - today.getDay()))
+    const selectedWeekStart = new Date(currentWeekStart.getTime() + (selectedWeek * 7 * 24 * 60 * 60 * 1000))
+    
+    const days = []
+    for (let i = 0; i < 7; i++) {
+      const day = new Date(selectedWeekStart)
+      day.setDate(selectedWeekStart.getDate() + i)
+      days.push(day)
+    }
+    return days
+  }
 
   // Check if filtered staff is empty
   if (filteredStaff.length === 0) {
@@ -2183,30 +2336,6 @@ const ScheduleShiftModal = ({ staff, preSelectedStaffId, onClose, onUpdateSchedu
         </div>
       </div>
 
-      {/* Debug Information */}
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-        <h3 className="text-sm font-semibold text-yellow-800 mb-2">🔧 Debug Information</h3>
-        <div className="text-xs text-yellow-700 space-y-1">
-          <p><strong>Current Week:</strong> {startOfWeek.toLocaleDateString()} - {new Date(startOfWeek.getTime() + 6 * 24 * 60 * 60 * 1000).toLocaleDateString()}</p>
-          <p><strong>Selected Week Offset:</strong> {selectedWeek}</p>
-          <p><strong>Staff Schedules Loaded:</strong> {Object.keys(staffSchedules).length} staff members</p>
-          {Object.entries(staffSchedules).map(([staffId, schedule]) => {
-            const staffMember = staff.find(s => s._id === staffId)
-            return (
-              <div key={staffId} className="ml-4">
-                <p><strong>{staffMember?.name || 'Unknown'}:</strong> {Object.keys(schedule).length} scheduled dates</p>
-                <div className="ml-4 text-xs">
-                  {Object.entries(schedule).slice(0, 3).map(([date, shift]) => (
-                    <p key={date}>{date}: {shift}</p>
-                  ))}
-                  {Object.keys(schedule).length > 3 && <p>... and {Object.keys(schedule).length - 3} more</p>}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-
       {/* Shift Legend */}
       {selectedRole !== 'all' && shiftSchedules[selectedRole] && (
         <div className="bg-white border border-gray-200 rounded-lg p-4">
@@ -2301,13 +2430,37 @@ const ScheduleShiftModal = ({ staff, preSelectedStaffId, onClose, onUpdateSchedu
             <div className="flex justify-between">
               <span className="text-blue-700">Day Shifts:</span>
               <span className="font-medium text-blue-900">
-                {filteredStaff.filter(s => s.isOnDuty).length} / {filteredStaff.length}
+                {(() => {
+                  // Calculate actual day shift coverage for the selected week
+                  const dayShifts = filteredStaff.reduce((count, staff) => {
+                    const schedule = staffSchedules[staff._id] || {}
+                    const weekDays = getWeekDays()
+                    return count + weekDays.filter(day => {
+                      const shift = schedule[day.toDateString()]
+                      return shift === 'morning' || shift === 'afternoon'
+                    }).length
+                  }, 0)
+                  const requiredDayShifts = filteredStaff.length * 7 * 0.7 // 70% day coverage target
+                  return `${dayShifts} / ${Math.ceil(requiredDayShifts)}`
+                })()}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-blue-700">Night Shifts:</span>
               <span className="font-medium text-blue-900">
-                {Math.ceil(filteredStaff.length * 0.3)} / {filteredStaff.length}
+                {(() => {
+                  // Calculate actual night shift coverage for the selected week
+                  const nightShifts = filteredStaff.reduce((count, staff) => {
+                    const schedule = staffSchedules[staff._id] || {}
+                    const weekDays = getWeekDays()
+                    return count + weekDays.filter(day => {
+                      const shift = schedule[day.toDateString()]
+                      return shift === 'night'
+                    }).length
+                  }, 0)
+                  const requiredNightShifts = filteredStaff.length * 7 * 0.3 // 30% night coverage target
+                  return `${nightShifts} / ${Math.ceil(requiredNightShifts)}`
+                })()}
               </span>
             </div>
           </div>
@@ -2319,12 +2472,29 @@ const ScheduleShiftModal = ({ staff, preSelectedStaffId, onClose, onUpdateSchedu
             <div className="flex justify-between">
               <span className="text-green-700">Balanced:</span>
               <span className="font-medium text-green-900">
-                {Math.round((filteredStaff.length / 7) * 10) / 10} per day
+                {(() => {
+                  // Calculate average shifts per day across all staff
+                  const totalShifts = Object.values(staffSchedules).reduce((total, schedule) => {
+                    return total + Object.keys(schedule).length
+                  }, 0)
+                  const avgPerDay = totalShifts / 7
+                  return `${Math.round(avgPerDay * 10) / 10} per day`
+                })()}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-green-700">Efficiency:</span>
-              <span className="font-medium text-green-900">85%</span>
+              <span className="font-medium text-green-900">
+                {(() => {
+                  // Calculate efficiency based on actual vs optimal coverage
+                  const totalPossibleShifts = filteredStaff.length * 7
+                  const actualShifts = Object.values(staffSchedules).reduce((total, schedule) => {
+                    return total + Object.keys(schedule).length
+                  }, 0)
+                  const efficiency = totalPossibleShifts > 0 ? Math.round((actualShifts / totalPossibleShifts) * 100) : 0
+                  return `${efficiency}%`
+                })()}
+              </span>
             </div>
           </div>
         </div>
@@ -2332,10 +2502,18 @@ const ScheduleShiftModal = ({ staff, preSelectedStaffId, onClose, onUpdateSchedu
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
           <h4 className="font-medium text-yellow-900 mb-2">Quick Actions</h4>
           <div className="space-y-2">
-            <button className="w-full px-3 py-1 bg-yellow-200 text-yellow-800 rounded text-sm hover:bg-yellow-300 transition-colors">
+            <button 
+              onClick={handleExportSchedule}
+              className="w-full px-3 py-1 bg-yellow-200 text-yellow-800 rounded text-sm hover:bg-yellow-300 transition-colors flex items-center justify-center gap-1"
+            >
+              <Download className="w-3 h-3" />
               Export Schedule
             </button>
-            <button className="w-full px-3 py-1 bg-yellow-200 text-yellow-800 rounded text-sm hover:bg-yellow-300 transition-colors">
+            <button 
+              onClick={handlePrintTimetable}
+              className="w-full px-3 py-1 bg-yellow-200 text-yellow-800 rounded text-sm hover:bg-yellow-300 transition-colors flex items-center justify-center gap-1"
+            >
+              <Printer className="w-3 h-3" />
               Print Timetable
             </button>
           </div>
