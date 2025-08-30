@@ -43,10 +43,55 @@ export default function StaffOverview({ detailed = false }) {
   const [selectedStaffForCalendar, setSelectedStaffForCalendar] = useState(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [currentView, setCurrentView] = useState('overview') // 'overview' or 'timetable'
+  
+  // Timetable-related state
+  const [staffSchedules, setStaffSchedules] = useState({}) // Store schedule data for each staff member
+  const [isLoadingSchedules, setIsLoadingSchedules] = useState(true)
 
   useEffect(() => {
     loadStaff()
   }, [])
+
+  // Load schedules when staff data changes
+  useEffect(() => {
+    const loadAllSchedules = async () => {
+      if (staff.length === 0) {
+        console.log('🔧 No staff data available, skipping schedule loading')
+        setIsLoadingSchedules(false)
+        return
+      }
+
+      console.log('🔧 Starting to load schedules for all staff members...')
+      setIsLoadingSchedules(true)
+      const schedulePromises = staff.map(async (staffMember) => {
+        try {
+          console.log(`🔧 Loading schedule for ${staffMember.name} (ID: ${staffMember._id})`)
+          const scheduleData = await apiClient.getStaffSchedule(staffMember._id)
+          console.log(`🔧 ✅ Loaded schedule for ${staffMember.name}:`, scheduleData)
+          return { staffId: staffMember._id, schedule: scheduleData }
+        } catch (error) {
+          console.log(`🔧 ❌ Error loading schedule for ${staffMember.name}:`, error)
+          // Return empty schedule on error to prevent breaking the UI
+          return { staffId: staffMember._id, schedule: {} }
+        }
+      })
+      
+      const results = await Promise.all(schedulePromises)
+      const schedulesMap = {}
+      results.forEach(result => {
+        schedulesMap[result.staffId] = result.schedule
+      })
+      
+      console.log('🔧 Final schedules map for all staff:', schedulesMap)
+      console.log('🔧 Setting staffSchedules state with:', schedulesMap)
+      setStaffSchedules(schedulesMap)
+      setIsLoadingSchedules(false)
+    }
+    
+    if (staff.length > 0) {
+      loadAllSchedules()
+    }
+  }, [staff])
 
   const loadStaff = async () => {
     try {
@@ -345,7 +390,11 @@ export default function StaffOverview({ detailed = false }) {
               Overview
             </button>
             <button
-              onClick={() => setCurrentView('timetable')}
+              onClick={() => {
+                console.log('🔧 Timetable button clicked, switching view to timetable')
+                console.log('🔧 Current staff data:', staff)
+                setCurrentView('timetable')
+              }}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                 currentView === 'timetable'
                   ? 'bg-white text-blue-600 shadow-sm'
@@ -730,7 +779,20 @@ export default function StaffOverview({ detailed = false }) {
 
       {/* Timetable View */}
       {currentView === 'timetable' && (
-        <StaffTimetableView staff={staff} />
+        <>
+          {console.log('🔧 Rendering timetable view, currentView:', currentView)}
+          {console.log('🔧 Staff data for timetable:', staff)}
+          <div className="bg-blue-50 p-4 rounded-lg mb-4">
+            <p className="text-blue-800">🔧 Debug: Timetable view is active. Staff count: {staff.length}</p>
+            <p className="text-blue-800">🔧 Debug: Schedule loading: {isLoadingSchedules ? 'Loading...' : 'Complete'}</p>
+            <p className="text-blue-800">🔧 Debug: Schedule data keys: {Object.keys(staffSchedules).join(', ')}</p>
+          </div>
+          <StaffTimetableView 
+            staff={staff} 
+            staffSchedules={staffSchedules}
+            isLoadingSchedules={isLoadingSchedules}
+          />
+        </>
       )}
 
       {/* Add Staff Modal */}
@@ -1862,11 +1924,54 @@ const ScheduleShiftModal = ({ staff, preSelectedStaffId, onClose, onUpdateSchedu
 }
 
 // Staff Timetable View Component
-const StaffTimetableView = ({ staff }) => {
-  const [selectedRole, setSelectedRole] = useState('all')
-  const [selectedWeek, setSelectedWeek] = useState(0) // 0 = current week, 1 = next week
+  const StaffTimetableView = ({ staff, staffSchedules, isLoadingSchedules }) => {
+    console.log('🔧 StaffTimetableView component loaded with staff:', staff)
+    console.log('🔧 StaffTimetableView received staffSchedules prop:', staffSchedules)
+    console.log('🔧 StaffTimetableView received isLoadingSchedules prop:', isLoadingSchedules)
+    
+    const [selectedRole, setSelectedRole] = useState('all')
+    const [selectedWeek, setSelectedWeek] = useState(0) // 0 = current week, 1 = next week
+    // Remove duplicate staffSchedules state - use parent component's state instead
   
-  const roles = ['all', 'doctor', 'nurse', 'technician', 'admin']
+  // Safety check for empty staff data
+  if (!staff || staff.length === 0) {
+    console.log('🔧 No staff data available, showing empty state')
+    return (
+      <div className="bg-white border border-gray-200 rounded-lg p-8 text-center">
+        <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+        <h3 className="text-lg font-medium text-gray-900 mb-2">No Staff Data Available</h3>
+        <p className="text-gray-500">Please add staff members to view the timetable.</p>
+      </div>
+    )
+  }
+
+  // Find weeks that have actual schedule data
+  const getWeeksWithScheduleData = () => {
+    const weeksWithData = new Set()
+    
+    // Get all schedule dates from all staff members
+    Object.values(staffSchedules).forEach(schedule => {
+      Object.keys(schedule).forEach(dateKey => {
+        const date = new Date(dateKey)
+        // Calculate which week this date belongs to
+        const monday = new Date(date)
+        monday.setDate(date.getDate() - date.getDay() + 1) // Get Monday of this week
+        const weekKey = monday.toDateString()
+        weeksWithData.add(weekKey)
+      })
+    })
+    
+    // Convert to array and sort
+    const sortedWeeks = Array.from(weeksWithData).sort((a, b) => new Date(a) - new Date(b))
+    console.log('🔧 Weeks with schedule data:', sortedWeeks)
+    return sortedWeeks
+  }
+
+  const weeksWithData = getWeeksWithScheduleData()
+  
+  // Get unique roles from actual staff data
+  const uniqueRoles = [...new Set(staff.map(member => member.role))].filter(Boolean)
+  const roles = ['all', ...uniqueRoles]
   const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
   const timeSlots = ['7:00 AM', '8:00 AM', '1:00 PM', '7:00 PM']
   
@@ -1886,6 +1991,19 @@ const StaffTimetableView = ({ staff }) => {
     technician: [
       { name: 'Day Shift', time: '8:00 AM - 4:00 PM', color: 'bg-teal-100 text-teal-800' },
       { name: 'Evening Shift', time: '4:00 PM - 12:00 AM', color: 'bg-cyan-100 text-cyan-800' }
+    ],
+    respiratory_therapist: [
+      { name: 'Day Shift', time: '8:00 AM - 4:00 PM', color: 'bg-purple-100 text-purple-800' },
+      { name: 'Night Shift', time: '7:00 PM - 7:00 AM', color: 'bg-indigo-100 text-indigo-800' }
+    ],
+    pharmacist: [
+      { name: 'Day Shift', time: '8:00 AM - 6:00 PM', color: 'bg-green-100 text-green-800' },
+      { name: 'Evening Shift', time: '2:00 PM - 10:00 PM', color: 'bg-teal-100 text-teal-800' }
+    ],
+    // Default schedule for any other roles
+    default: [
+      { name: 'Day Shift', time: '8:00 AM - 4:00 PM', color: 'bg-gray-100 text-gray-800' },
+      { name: 'Evening Shift', time: '4:00 PM - 12:00 AM', color: 'bg-gray-200 text-gray-800' }
     ]
   }
 
@@ -1893,22 +2011,114 @@ const StaffTimetableView = ({ staff }) => {
     ? staff 
     : staff.filter(member => member.role === selectedRole)
 
-  const getShiftForStaff = (staffMember, day, timeSlot) => {
-    // Mock shift assignment logic - in real app this would come from database
-    const shifts = shiftSchedules[staffMember.role] || []
-    if (shifts.length === 0) return null
+  // Check if filtered staff is empty
+  if (filteredStaff.length === 0) {
+    return (
+      <div className="bg-white border border-gray-200 rounded-lg p-8 text-center">
+        <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+        <h3 className="text-lg font-medium text-gray-900 mb-2">No Staff Found</h3>
+        <p className="text-gray-500">
+          {selectedRole === 'all' 
+            ? 'No staff members available for timetable view.' 
+            : `No ${selectedRole} staff members found.`}
+        </p>
+        {selectedRole !== 'all' && (
+          <button 
+            onClick={() => setSelectedRole('all')}
+            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            View All Roles
+          </button>
+        )}
+      </div>
+    )
+  }
+
+  const getShiftForStaff = (staffMember, day, date) => {
+    // First, try to get actual schedule data for this staff member and date
+    const staffSchedule = staffSchedules[staffMember._id] || {}
+    const dateKey = date.toDateString()
     
-    // Simple rotation logic for demo
-    const dayIndex = daysOfWeek.indexOf(day)
-    const staffIndex = staff.indexOf(staffMember)
-    const shiftIndex = (dayIndex + staffIndex) % shifts.length
+    console.log(`🔧 getShiftForStaff: ${staffMember.name} on ${day} (${dateKey})`)
+    console.log(`🔧 Available schedule keys:`, Object.keys(staffSchedule))
+    console.log(`🔧 Looking for dateKey: "${dateKey}"`)
+    console.log(`🔧 Full staffSchedules object:`, staffSchedules)
+    console.log(`🔧 staffMember._id:`, staffMember._id)
+    console.log(`🔧 staffSchedule for this member:`, staffSchedule)
     
-    return shifts[shiftIndex]
+    // Try exact match first
+    if (staffSchedule[dateKey]) {
+      const shiftType = staffSchedule[dateKey]
+      console.log(`🔧 ✅ Found scheduled shift: ${shiftType} for ${staffMember.name} on ${dateKey}`)
+      
+      // Map shift types to display information based on role
+      const shifts = shiftSchedules[staffMember.role] || shiftSchedules.default
+      
+      // Find matching shift by type
+      let matchingShift = null
+      switch (shiftType) {
+        case 'morning':
+          matchingShift = shifts.find(s => s.name.toLowerCase().includes('morning') || s.name.toLowerCase().includes('day'))
+          break
+        case 'afternoon':
+        case 'evening':
+          matchingShift = shifts.find(s => s.name.toLowerCase().includes('afternoon') || s.name.toLowerCase().includes('evening'))
+          break
+        case 'night':
+          matchingShift = shifts.find(s => s.name.toLowerCase().includes('night'))
+          break
+        case 'emergency':
+          matchingShift = shifts.find(s => s.name.toLowerCase().includes('emergency')) || {
+            name: 'Emergency',
+            time: 'On-call',
+            color: 'bg-red-100 text-red-800'
+          }
+          break
+        case 'off':
+          console.log(`🔧 Staff ${staffMember.name} is off on ${dateKey}`)
+          return null
+        default:
+          matchingShift = shifts[0] // Default to first shift
+      }
+      
+      console.log(`🔧 Returning shift:`, matchingShift)
+      return matchingShift || shifts[0]
+    } else {
+      console.log(`🔧 ❌ No schedule found for ${staffMember.name} on ${dateKey}`)
+      console.log(`🔧 Available dates for this staff:`, Object.keys(staffSchedule))
+    }
+    
+    // Fallback: use staff member's current shift if it's today
+    const today = new Date()
+    if (date.toDateString() === today.toDateString() && staffMember.currentShift && staffMember.currentShift !== 'off') {
+      console.log(`🔧 Using current shift for ${staffMember.name}: ${staffMember.currentShift}`)
+      const shifts = shiftSchedules[staffMember.role] || shiftSchedules.default
+      const currentShiftType = staffMember.currentShift
+      
+      switch (currentShiftType) {
+        case 'morning':
+          return shifts.find(s => s.name.toLowerCase().includes('morning') || s.name.toLowerCase().includes('day')) || shifts[0]
+        case 'afternoon':
+        case 'evening':
+          return shifts.find(s => s.name.toLowerCase().includes('afternoon') || s.name.toLowerCase().includes('evening')) || shifts[1]
+        case 'night':
+          return shifts.find(s => s.name.toLowerCase().includes('night')) || shifts[2]
+        case 'emergency':
+          return { name: 'Emergency', time: 'On-call', color: 'bg-red-100 text-red-800' }
+        default:
+          return shifts[0]
+      }
+    }
+    
+    // If no schedule data available and not current duty, show as off
+    console.log(`🔧 No shift data for ${staffMember.name} on ${dateKey} - showing as off`)
+    return null
   }
 
   const weekOffset = selectedWeek * 7
   const currentDate = new Date()
-  const startOfWeek = new Date(currentDate.setDate(currentDate.getDate() - currentDate.getDay() + 1 + weekOffset))
+  const startOfWeek = new Date(currentDate)
+  startOfWeek.setDate(currentDate.getDate() - currentDate.getDay() + 1 + weekOffset) // Start from Monday
 
   return (
     <div className="space-y-6">
@@ -1924,7 +2134,9 @@ const StaffTimetableView = ({ staff }) => {
             >
               {roles.map(role => (
                 <option key={role} value={role}>
-                  {role === 'all' ? 'All Roles' : role.charAt(0).toUpperCase() + role.slice(1) + 's'}
+                  {role === 'all' ? 'All Roles' : 
+                   role === 'respiratory_therapist' ? 'Respiratory Therapists' :
+                   role.charAt(0).toUpperCase() + role.slice(1) + 's'}
                 </option>
               ))}
             </select>
@@ -1940,6 +2152,22 @@ const StaffTimetableView = ({ staff }) => {
               <option value={0}>Current Week</option>
               <option value={1}>Next Week</option>
               <option value={2}>Week After Next</option>
+              {weeksWithData.length > 0 && (
+                <>
+                  <option disabled>─── Weeks with Schedule Data ───</option>
+                  {weeksWithData.map((weekStart, index) => {
+                    const weekDate = new Date(weekStart)
+                    const weekEnd = new Date(weekDate)
+                    weekEnd.setDate(weekDate.getDate() + 6)
+                    const weekOffset = Math.ceil((weekDate - new Date()) / (7 * 24 * 60 * 60 * 1000))
+                    return (
+                      <option key={weekStart} value={weekOffset}>
+                        {weekDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </option>
+                    )
+                  })}
+                </>
+              )}
             </select>
           </div>
         </div>
@@ -1947,6 +2175,35 @@ const StaffTimetableView = ({ staff }) => {
         <div className="text-sm text-gray-600">
           <p className="font-medium">Viewing: {selectedRole === 'all' ? 'All Staff' : selectedRole.charAt(0).toUpperCase() + selectedRole.slice(1) + 's'}</p>
           <p>Total: {filteredStaff.length} staff members</p>
+          {Object.keys(staffSchedules).length > 0 && (
+            <p className="text-blue-600 mt-1">
+              📅 Schedule data available for {Object.values(staffSchedules).reduce((total, schedule) => total + Object.keys(schedule).length, 0)} dates
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Debug Information */}
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+        <h3 className="text-sm font-semibold text-yellow-800 mb-2">🔧 Debug Information</h3>
+        <div className="text-xs text-yellow-700 space-y-1">
+          <p><strong>Current Week:</strong> {startOfWeek.toLocaleDateString()} - {new Date(startOfWeek.getTime() + 6 * 24 * 60 * 60 * 1000).toLocaleDateString()}</p>
+          <p><strong>Selected Week Offset:</strong> {selectedWeek}</p>
+          <p><strong>Staff Schedules Loaded:</strong> {Object.keys(staffSchedules).length} staff members</p>
+          {Object.entries(staffSchedules).map(([staffId, schedule]) => {
+            const staffMember = staff.find(s => s._id === staffId)
+            return (
+              <div key={staffId} className="ml-4">
+                <p><strong>{staffMember?.name || 'Unknown'}:</strong> {Object.keys(schedule).length} scheduled dates</p>
+                <div className="ml-4 text-xs">
+                  {Object.entries(schedule).slice(0, 3).map(([date, shift]) => (
+                    <p key={date}>{date}: {shift}</p>
+                  ))}
+                  {Object.keys(schedule).length > 3 && <p>... and {Object.keys(schedule).length - 3} more</p>}
+                </div>
+              </div>
+            )
+          })}
         </div>
       </div>
 
@@ -1968,62 +2225,73 @@ const StaffTimetableView = ({ staff }) => {
       )}
 
       {/* Weekly Timetable Grid */}
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 border-r border-gray-200">
-                  Staff Member
-                </th>
-                {daysOfWeek.map((day, index) => {
-                  const date = new Date(startOfWeek)
-                  date.setDate(startOfWeek.getDate() + index)
-                  return (
-                    <th key={day} className="px-3 py-3 text-center text-sm font-medium text-gray-700 border-r border-gray-200 min-w-[120px]">
-                      <div>{day}</div>
-                      <div className="text-xs text-gray-500 font-normal">
-                        {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                      </div>
-                    </th>
-                  )
-                })}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {filteredStaff.map(staffMember => (
-                <tr key={staffMember._id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 border-r border-gray-200">
-                    <div className="flex items-center">
-                      <div className={`w-3 h-3 rounded-full mr-3 ${staffMember.isOnDuty ? 'bg-green-500' : 'bg-gray-400'}`}></div>
-                      <div>
-                        <div className="font-medium text-gray-900">{staffMember.name}</div>
-                        <div className="text-sm text-gray-500">{staffMember.role}</div>
-                        <div className="text-xs text-gray-400">{staffMember.department}</div>
-                      </div>
-                    </div>
-                  </td>
-                  {daysOfWeek.map(day => {
-                    const shift = getShiftForStaff(staffMember, day, '8:00 AM')
+      {isLoadingSchedules ? (
+        <div className="bg-white border border-gray-200 rounded-lg p-8 text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-sm text-gray-600">Loading schedule data...</p>
+        </div>
+      ) : (
+        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-sm font-medium text-gray-700 border-r border-gray-200">
+                    Staff Member
+                  </th>
+                  {daysOfWeek.map((day, index) => {
+                    const date = new Date(startOfWeek)
+                    date.setDate(startOfWeek.getDate() + index)
                     return (
-                      <td key={day} className="px-2 py-3 text-center border-r border-gray-200">
-                        {shift ? (
-                          <div className={`${shift.color} px-2 py-1 rounded text-xs font-medium`}>
-                            <div>{shift.name}</div>
-                            <div className="text-xs opacity-75">{shift.time}</div>
-                          </div>
-                        ) : (
-                          <div className="text-gray-400 text-xs">Off</div>
-                        )}
-                      </td>
+                      <th key={day} className="px-3 py-3 text-center text-sm font-medium text-gray-700 border-r border-gray-200 min-w-[120px]">
+                        <div>{day}</div>
+                        <div className="text-xs text-gray-500 font-normal">
+                          {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </div>
+                      </th>
                     )
                   })}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {filteredStaff.map(staffMember => (
+                  <tr key={staffMember._id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 border-r border-gray-200">
+                      <div className="flex items-center">
+                        <div className={`w-3 h-3 rounded-full mr-3 ${staffMember.isOnDuty ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                        <div>
+                          <div className="font-medium text-gray-900">
+                            {staffMember.name || `${staffMember.firstName || ''} ${staffMember.lastName || ''}`.trim() || 'Unknown'}
+                          </div>
+                          <div className="text-sm text-gray-500">{staffMember.role || 'Unknown Role'}</div>
+                          <div className="text-xs text-gray-400">{staffMember.department || 'Unknown Dept'}</div>
+                        </div>
+                      </div>
+                    </td>
+                    {daysOfWeek.map((day, index) => {
+                      const date = new Date(startOfWeek)
+                      date.setDate(startOfWeek.getDate() + index)
+                      const shift = getShiftForStaff(staffMember, day, date)
+                      return (
+                        <td key={day} className="px-2 py-3 text-center border-r border-gray-200">
+                          {shift ? (
+                            <div className={`${shift.color} px-2 py-1 rounded text-xs font-medium`}>
+                              <div>{shift.name}</div>
+                              <div className="text-xs opacity-75">{shift.time}</div>
+                            </div>
+                          ) : (
+                            <div className="text-gray-400 text-xs">Off</div>
+                          )}
+                        </td>
+                      )
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Timetable Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
