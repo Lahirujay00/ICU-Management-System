@@ -2445,10 +2445,10 @@ const ScheduleShiftModal = ({ staff, preSelectedStaffId, onClose, onUpdateSchedu
     Object.values(staffSchedules).forEach(schedule => {
       Object.keys(schedule).forEach(dateKey => {
         const date = new Date(dateKey)
-        // Calculate which week this date belongs to
-        const monday = new Date(date)
-        monday.setDate(date.getDate() - date.getDay() + 1) // Get Monday of this week
-        const weekKey = monday.toDateString()
+        // Calculate which week this date belongs to - use Sunday as week start (consistent with getWeekDays)
+        const sunday = new Date(date)
+        sunday.setDate(date.getDate() - date.getDay()) // Get Sunday of this week
+        const weekKey = sunday.toDateString()
         weeksWithData.add(weekKey)
       })
     })
@@ -2464,7 +2464,7 @@ const ScheduleShiftModal = ({ staff, preSelectedStaffId, onClose, onUpdateSchedu
   // Get unique roles from actual staff data
   const uniqueRoles = [...new Set(staff.map(member => member.role))].filter(Boolean)
   const roles = ['all', ...uniqueRoles]
-  const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+  const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
   const timeSlots = ['7:00 AM', '8:00 AM', '1:00 PM', '7:00 PM']
   
   // Role-specific shift schedules
@@ -2843,9 +2843,9 @@ const ScheduleShiftModal = ({ staff, preSelectedStaffId, onClose, onUpdateSchedu
   }
 
   const weekOffset = selectedWeek * 7
-  const currentDate = new Date()
+  const currentDate = getColomboTimeAsDate() // Use Colombo time consistently
   const startOfWeek = new Date(currentDate)
-  startOfWeek.setDate(currentDate.getDate() - currentDate.getDay() + 1 + weekOffset) // Start from Monday
+  startOfWeek.setDate(currentDate.getDate() - currentDate.getDay() + weekOffset) // Start from Sunday (consistent with getWeekDays)
 
   return (
     <div className="space-y-6">
