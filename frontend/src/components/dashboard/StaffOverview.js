@@ -81,7 +81,23 @@ export default function StaffOverview({ detailed = false }) {
       const results = await Promise.all(schedulePromises)
       const schedulesMap = {}
       results.forEach(result => {
-        schedulesMap[result.staffId] = result.schedule
+        // Start with database schedule
+        let mergedSchedule = { ...result.schedule }
+        
+        // Merge with localStorage data (for absent markings and local changes)
+        const staffScheduleKey = `staff_schedule_${result.staffId}`
+        const localSchedule = JSON.parse(localStorage.getItem(staffScheduleKey) || '{}')
+        
+        // LocalStorage data takes precedence (especially for absent markings)
+        mergedSchedule = { ...mergedSchedule, ...localSchedule }
+        
+        console.log(`🔧 Merged schedule for staff ${result.staffId}:`, {
+          database: result.schedule,
+          localStorage: localSchedule,
+          merged: mergedSchedule
+        })
+        
+        schedulesMap[result.staffId] = mergedSchedule
       })
       
       console.log('🔧 Final schedules map for all staff:', schedulesMap)
@@ -188,10 +204,132 @@ export default function StaffOverview({ detailed = false }) {
     }
   }
 
+  // Helper function to get current time in Colombo Standard Time
+  const getColomboTime = () => {
+    return new Date().toLocaleString("en-US", {timeZone: "Asia/Colombo"})
+  }
+
+  // Helper function to get Colombo time as Date object
+  const getColomboTimeAsDate = () => {
+    // Get current UTC time and convert to Colombo timezone
+    const now = new Date()
+    // Colombo is UTC+5:30
+    const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000)
+    const colomboTime = new Date(utcTime + (5.5 * 3600000)) // UTC+5:30
+    return colomboTime
+  }
+
+  // Helper function to get current shift from timetable based on Colombo time
+  const getCurrentShiftFromTimetable = (staffMember) => {
+    const now = getColomboTimeAsDate()
+    const today = new Date(now)
+    
+    // Get today's schedule from timetable
+    const staffSchedule = staffSchedules[staffMember._id] || {}
+    const todayKey = today.toDateString()
+    const todayISOKey = today.toISOString().split('T')[0]
+    
+    // Check for leave first
+    if (staffMember.leaveSchedule) {
+      if (staffMember.leaveSchedule[todayISOKey] || staffMember.leaveSchedule[todayKey]) {
+        return {
+          shift: 'leave',
+          isCurrentTime: true,
+          display: 'On Leave'
+        }
+      }
+    }
+    
+    // Get scheduled shift for today
+    let scheduledShift = staffSchedule[todayKey] || staffSchedule[todayISOKey]
+    
+    // Try alternate date formats
+    if (!scheduledShift) {
+      for (const key of Object.keys(staffSchedule)) {
+        try {
+          const keyDate = new Date(key)
+          if (keyDate.toDateString() === todayKey || keyDate.toISOString().split('T')[0] === todayISOKey) {
+            scheduledShift = staffSchedule[key]
+            break
+          }
+        } catch (e) {
+          continue
+        }
+      }
+    }
+    
+    // Handle absent status
+    if (scheduledShift === 'absent') {
+      return {
+        shift: 'absent',
+        isCurrentTime: false,
+        display: 'Absent'
+      }
+    }
+    
+    if (!scheduledShift || scheduledShift === 'off') {
+      return null // No shift scheduled for today
+    }
+    
+    // Check if current time falls within the scheduled shift
+    const currentHour = now.getHours()
+    const currentMinute = now.getMinutes()
+    const currentTimeMinutes = currentHour * 60 + currentMinute
+    
+    // Define shift time ranges based on role
+    const getShiftTimeRange = (shift, role) => {
+      const timeRanges = {
+        doctor: {
+          morning: { start: 8 * 60, end: 16 * 60 }, // 8:00 AM - 4:00 PM
+          afternoon: { start: 13 * 60, end: 19 * 60 }, // 1:00 PM - 7:00 PM
+          night: { start: 19 * 60, end: 7 * 60 + 24 * 60 }, // 7:00 PM - 7:00 AM next day
+          emergency: { start: 0, end: 24 * 60 } // 24-hour
+        },
+        nurse: {
+          morning: { start: 7 * 60, end: 13 * 60 }, // 7:00 AM - 1:00 PM
+          afternoon: { start: 13 * 60, end: 19 * 60 }, // 1:00 PM - 7:00 PM
+          night: { start: 19 * 60, end: 7 * 60 + 24 * 60 } // 7:00 PM - 7:00 AM next day
+        },
+        default: {
+          morning: { start: 7 * 60, end: 15 * 60 }, // 7:00 AM - 3:00 PM
+          afternoon: { start: 15 * 60, end: 23 * 60 }, // 3:00 PM - 11:00 PM
+          night: { start: 23 * 60, end: 7 * 60 + 24 * 60 } // 11:00 PM - 7:00 AM next day
+        }
+      }
+      
+      const roleRanges = timeRanges[role] || timeRanges.default
+      return roleRanges[shift] || null
+    }
+    
+    const timeRange = getShiftTimeRange(scheduledShift, staffMember.role)
+    if (!timeRange) return null
+    
+    // Check if current time is within shift range
+    let isCurrentTime = false
+    if (timeRange.end > 24 * 60) {
+      // Overnight shift
+      isCurrentTime = currentTimeMinutes >= timeRange.start || currentTimeMinutes <= (timeRange.end - 24 * 60)
+    } else {
+      // Regular shift
+      isCurrentTime = currentTimeMinutes >= timeRange.start && currentTimeMinutes <= timeRange.end
+    }
+    
+    // Safely capitalize the shift name
+    const displayShift = typeof scheduledShift === 'string' 
+      ? scheduledShift.charAt(0).toUpperCase() + scheduledShift.slice(1)
+      : String(scheduledShift)
+    
+    return {
+      shift: scheduledShift,
+      isCurrentTime,
+      display: displayShift,
+      timeRange
+    }
+  }
+
   const handleToggleDutyStatus = async (staffId) => {
     try {
       console.log('🔧 handleToggleDutyStatus called with staffId:', staffId);
-      console.log('🔧 Current staff array:', staff);
       
       const member = staff.find(s => s._id === staffId)
       if (!member) {
@@ -200,49 +338,173 @@ export default function StaffOverview({ detailed = false }) {
         return
       }
       
+      console.log('🔧 Found staff member:', member.name || `${member.firstName} ${member.lastName}`)
+      
       const memberName = member.name || `${member.firstName} ${member.lastName}`
-      const newDutyStatus = !member.isOnDuty
       
-      console.log(`🔧 Toggling duty status for ${memberName}: ${member.isOnDuty} -> ${newDutyStatus}`)
+      console.log('🔧 Getting current shift info...')
+      console.log('🔧 Current Colombo time:', getColomboTime())
+      console.log('🔧 Current Colombo Date object:', getColomboTimeAsDate())
       
-      // Update local state immediately for better UX
-      setStaff(prev => prev.map(member => 
-        member._id === staffId 
-          ? { ...member, isOnDuty: newDutyStatus, currentShift: newDutyStatus ? 'morning' : 'off' }
-          : member
-      ))
-      
-      // Show info about patient assignment availability when staff goes on/off duty
-      if (showAssignPatientModal) {
-        if (newDutyStatus) {
-          toast.info(`✅ ${memberName} is now available for patient assignments`)
-        } else {
-          toast.info(`⚠️ ${memberName} is no longer available for new patient assignments`)
-        }
-      }
-      
-      // Try to update in database
+      let currentShiftInfo = null
       try {
-        const updateData = { 
-          isOnDuty: newDutyStatus, 
-          currentShift: newDutyStatus ? 'morning' : 'off' 
-        }
-        console.log(`🔧 Sending status update to API:`, updateData)
-        
-        await apiClient.updateStaffStatus(staffId, updateData)
-        toast.success(`✅ ${memberName} is now ${newDutyStatus ? 'on duty' : 'off duty'}`)
-      } catch (apiError) {
-        console.error('Database status update failed:', apiError)
-        toast.error(`❌ Failed to update ${memberName}'s duty status in database`)
-        // Revert the local state change on API failure
-        setStaff(prev => prev.map(member => 
-          member._id === staffId 
-            ? { ...member, isOnDuty: !newDutyStatus, currentShift: !newDutyStatus ? 'morning' : 'off' }
-            : member
-        ))
+        currentShiftInfo = getCurrentShiftFromTimetable(member)
+        console.log('🔧 Current shift info:', currentShiftInfo)
+      } catch (shiftError) {
+        console.error('❌ Error getting current shift info:', shiftError)
+        toast.error('❌ Error checking current shift schedule')
+        return
       }
+      
+      // Check if staff member has a scheduled shift right now
+      if (!member.isOnDuty) {
+        // CLOCKING IN
+        if (!currentShiftInfo || !currentShiftInfo.isCurrentTime) {
+          const currentTime = getColomboTime()
+          toast.error(`❌ ${memberName} has no scheduled shift at this time (${currentTime})`)
+          return
+        }
+        
+        console.log('🔧 Attempting to clock in staff member...')
+        
+        // Clock in for scheduled shift
+        const newDutyStatus = true
+        setStaff(prev => prev.map(m => 
+          m._id === staffId 
+            ? { ...m, isOnDuty: newDutyStatus, currentShift: currentShiftInfo.shift }
+            : m
+        ))
+        
+        try {
+          const updateData = { 
+            isOnDuty: newDutyStatus, 
+            currentShift: currentShiftInfo.shift
+          }
+          console.log('🔧 Calling API to update staff status with data:', updateData)
+          const result = await apiClient.updateStaffStatus(staffId, updateData)
+          console.log('🔧 API call successful, result:', result)
+          toast.success(`✅ ${memberName} clocked in for ${currentShiftInfo.display} shift`)
+        } catch (apiError) {
+          console.error('❌ Database status update failed:', apiError)
+          console.error('❌ API Error details:', {
+            message: apiError.message,
+            stack: apiError.stack,
+            name: apiError.name
+          })
+          toast.error(`❌ Failed to update ${memberName}'s status in database`)
+          // Revert local state
+          setStaff(prev => prev.map(m => 
+            m._id === staffId 
+              ? { ...m, isOnDuty: false, currentShift: 'off' }
+              : m
+          ))
+        }
+      } else {
+        // CLOCKING OUT
+        console.log('🔧 Attempting to clock out staff member...')
+        const newDutyStatus = false
+        
+        // If clocking out during a scheduled shift, mark as absent in timetable
+        if (currentShiftInfo && currentShiftInfo.isCurrentTime) {
+          console.log('🔧 Marking as absent in timetable for early clock out...')
+          
+          // Use Colombo time for consistent date handling
+          const colomboTime = getColomboTimeAsDate()
+          const dateKey = colomboTime.toDateString()
+          const isoDateKey = colomboTime.toISOString().split('T')[0]
+          
+          console.log('🔧 Marking absent for dates:', { dateKey, isoDateKey })
+          
+          // Update timetable to mark as absent
+          const staffScheduleKey = `staff_schedule_${staffId}`
+          const existingSchedule = JSON.parse(localStorage.getItem(staffScheduleKey) || '{}')
+          existingSchedule[isoDateKey] = 'absent'
+          existingSchedule[dateKey] = 'absent'
+          localStorage.setItem(staffScheduleKey, JSON.stringify(existingSchedule))
+          
+          console.log('🔧 Updated localStorage schedule:', existingSchedule)
+          
+          // Update staffSchedules state
+          setStaffSchedules(prev => {
+            const updated = {
+              ...prev,
+              [staffId]: {
+                ...prev[staffId],
+                [dateKey]: 'absent',
+                [isoDateKey]: 'absent'
+              }
+            }
+            console.log('🔧 Updated staffSchedules state:', updated[staffId])
+            return updated
+          })
+          
+          toast(`⚠️ ${memberName} marked as ABSENT for ${currentShiftInfo.display} shift`, {
+            icon: '⚠️',
+            duration: 4000
+          })
+          
+          // Force a re-render of the timetable view by triggering a state update
+          setTimeout(() => {
+            console.log('🔧 Forcing timetable refresh...')
+            setStaffSchedules(prev => ({ ...prev }))
+          }, 100)
+        }
+        
+        setStaff(prev => prev.map(m => 
+          m._id === staffId 
+            ? { ...m, isOnDuty: newDutyStatus, currentShift: 'off' }
+            : m
+        ))
+        
+        try {
+          const updateData = { 
+            isOnDuty: newDutyStatus, 
+            currentShift: 'off' 
+          }
+          console.log('🔧 Calling API to clock out staff with data:', updateData)
+          const result = await apiClient.updateStaffStatus(staffId, updateData)
+          console.log('🔧 Clock out API call successful, result:', result)
+          toast.success(`✅ ${memberName} clocked out`)
+        } catch (apiError) {
+          console.error('❌ Database clock out update failed:', apiError)
+          console.error('❌ Clock out API Error details:', {
+            message: apiError.message,
+            stack: apiError.stack,
+            name: apiError.name
+          })
+          toast.error(`❌ Failed to update ${memberName}'s status in database`)
+          // Revert local state
+          setStaff(prev => prev.map(m => 
+            m._id === staffId 
+              ? { ...m, isOnDuty: true, currentShift: currentShiftInfo?.shift || 'morning' }
+              : m
+          ))
+        }
+      }
+      
+      // Provide feedback for patient assignment modal
+      if (showAssignPatientModal) {
+        const isNowOnDuty = !member.isOnDuty
+        if (isNowOnDuty) {
+          toast(`✅ ${memberName} is now available for patient assignments`, {
+            icon: '✅',
+            duration: 3000
+          })
+        } else {
+          toast(`⚠️ ${memberName} is no longer available for new patient assignments`, {
+            icon: '⚠️',
+            duration: 3000
+          })
+        }
+      }
+      
     } catch (error) {
-      console.error('Error updating duty status:', error)
+      console.error('❌ Error in handleToggleDutyStatus:', error)
+      console.error('❌ Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      })
       toast.error('❌ Failed to update duty status')
     }
   }
@@ -283,9 +545,15 @@ export default function StaffOverview({ detailed = false }) {
         const memberName = updatedMember?.name || 'Staff member'
         
         if (scheduleData.isOnDuty) {
-          toast.info(`✅ ${memberName} is now available for patient assignments`)
+          toast(`✅ ${memberName} is now available for patient assignments`, {
+            icon: '✅',
+            duration: 3000
+          })
         } else {
-          toast.info(`⚠️ ${memberName} is no longer available for new patient assignments`)
+          toast(`⚠️ ${memberName} is no longer available for new patient assignments`, {
+            icon: '⚠️',
+            duration: 3000
+          })
         }
       }
       
@@ -615,24 +883,56 @@ export default function StaffOverview({ detailed = false }) {
                 {/* Status & Shift */}
                 <div className="col-span-2">
                   <div className="flex flex-col gap-2">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium w-fit ${
-                      member.isOnDuty 
-                        ? 'bg-green-100 text-green-800 border border-green-300' 
-                        : 'bg-gray-100 text-gray-800 border border-gray-300'
-                    }`}>
-                      {member.isOnDuty ? '🟢 On Duty' : '⭕ Off Duty'}
-                    </span>
-                    {member.currentShift && member.currentShift !== 'off' && (
-                      <div className="text-xs">
-                        <div className="flex items-center gap-1 text-blue-600 mb-1">
-                          <Clock className="w-3 h-3" />
-                          <span className="font-medium capitalize">{member.currentShift}</span>
-                        </div>
-                        <div className="text-gray-500 text-xs pl-4">
-                          {getShiftTimeDisplay(member.role, member.currentShift)}
-                        </div>
-                      </div>
-                    )}
+                    {(() => {
+                      const currentShiftInfo = getCurrentShiftFromTimetable(member)
+                      
+                      return (
+                        <>
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium w-fit ${
+                            member.isOnDuty 
+                              ? 'bg-green-100 text-green-800 border border-green-300' 
+                              : 'bg-gray-100 text-gray-800 border border-gray-300'
+                          }`}>
+                            {member.isOnDuty ? '🟢 On Duty' : '⭕ Off Duty'}
+                          </span>
+                          
+                          {/* Show current scheduled shift from timetable */}
+                          {currentShiftInfo ? (
+                            <div className="text-xs">
+                              <div className={`flex items-center gap-1 mb-1 ${
+                                currentShiftInfo.shift === 'leave' ? 'text-orange-600' :
+                                currentShiftInfo.shift === 'absent' ? 'text-red-600' :
+                                currentShiftInfo.isCurrentTime ? 'text-blue-600' : 'text-gray-500'
+                              }`}>
+                                <Clock className="w-3 h-3" />
+                                <span className="font-medium">
+                                  {currentShiftInfo.shift === 'leave' ? 'On Leave' : 
+                                   currentShiftInfo.shift === 'absent' ? 'Absent' :
+                                   `${currentShiftInfo.display} Shift`}
+                                  {member.isOnDuty && currentShiftInfo.isCurrentTime && currentShiftInfo.shift !== 'leave' && currentShiftInfo.shift !== 'absent' && (
+                                    <span className="ml-1 text-green-600">● ACTIVE</span>
+                                  )}
+                                </span>
+                              </div>
+                              {currentShiftInfo.shift !== 'leave' && currentShiftInfo.shift !== 'absent' && currentShiftInfo.timeRange && (
+                                <div className="text-gray-500 text-xs pl-4">
+                                  {getShiftTimeDisplay(member.role, currentShiftInfo.shift)}
+                                </div>
+                              )}
+                              {!currentShiftInfo.isCurrentTime && currentShiftInfo.shift !== 'leave' && currentShiftInfo.shift !== 'absent' && (
+                                <div className="text-gray-400 text-xs pl-4 italic">
+                                  Scheduled for today
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="text-xs text-gray-400 italic">
+                              No shift scheduled
+                            </div>
+                          )}
+                        </>
+                      )
+                    })()}
                   </div>
                 </div>
 
@@ -1563,7 +1863,10 @@ const CalendarScheduleModal = ({ staff, selectedStaffId, onClose, onUpdateSchedu
       if (updateSuccess !== false) {
         toast.success(`✅ ${shift === 'off' ? 'Off duty' : shift + ' shift'} assigned to ${staffName} for ${selectedDate.toLocaleDateString()}`)
       } else {
-        toast.warning(`⚠️ ${shift === 'off' ? 'Off duty' : shift + ' shift'} assigned locally but database update failed`)
+        toast(`⚠️ ${shift === 'off' ? 'Off duty' : shift + ' shift'} assigned locally but database update failed`, {
+          icon: '⚠️',
+          duration: 4000
+        })
       }
       
       // Clear selected date after assignment for better UX
@@ -2112,6 +2415,16 @@ const ScheduleShiftModal = ({ staff, preSelectedStaffId, onClose, onUpdateSchedu
     const [selectedRole, setSelectedRole] = useState('all')
     const [selectedWeek, setSelectedWeek] = useState(0) // 0 = current week, 1 = next week
     // Remove duplicate staffSchedules state - use parent component's state instead
+
+    // Helper function to get Colombo time as Date object (local to this component)
+    const getColomboTimeAsDate = () => {
+      // Get current UTC time and convert to Colombo timezone
+      const now = new Date()
+      // Colombo is UTC+5:30
+      const utcTime = now.getTime() + (now.getTimezoneOffset() * 60000)
+      const colomboTime = new Date(utcTime + (5.5 * 3600000)) // UTC+5:30
+      return colomboTime
+    }
   
   // Safety check for empty staff data
   if (!staff || staff.length === 0) {
@@ -2342,8 +2655,17 @@ const ScheduleShiftModal = ({ staff, preSelectedStaffId, onClose, onUpdateSchedu
 
   // Get week days for current selected week
   const getWeekDays = () => {
-    const today = new Date()
-    const currentWeekStart = new Date(today.setDate(today.getDate() - today.getDay()))
+    // Use Colombo time to ensure correct date calculations
+    const colomboToday = getColomboTimeAsDate()
+    
+    // Create a new date object to avoid mutation
+    const today = new Date(colomboToday)
+    
+    // Get the start of the current week (Sunday)
+    const currentWeekStart = new Date(today)
+    currentWeekStart.setDate(today.getDate() - today.getDay())
+    
+    // Calculate the selected week start
     const selectedWeekStart = new Date(currentWeekStart.getTime() + (selectedWeek * 7 * 24 * 60 * 60 * 1000))
     
     const days = []
@@ -2381,61 +2703,122 @@ const ScheduleShiftModal = ({ staff, preSelectedStaffId, onClose, onUpdateSchedu
   const getShiftForStaff = (staffMember, day, date) => {
     // First, try to get actual schedule data for this staff member and date
     const staffSchedule = staffSchedules[staffMember._id] || {}
-    const dateKey = date.toDateString()
+    
+    // Try multiple date formats to match localStorage and API data
+    const dateKey = date.toDateString() // "Mon Jan 01 2024"
+    const isoDateKey = date.toISOString().split('T')[0] // "2024-01-01"
     
     console.log(`🔧 getShiftForStaff: ${staffMember.name} on ${day} (${dateKey})`)
     console.log(`🔧 Available schedule keys:`, Object.keys(staffSchedule))
-    console.log(`🔧 Looking for dateKey: "${dateKey}"`)
-    console.log(`🔧 Full staffSchedules object:`, staffSchedules)
-    console.log(`🔧 staffMember._id:`, staffMember._id)
-    console.log(`🔧 staffSchedule for this member:`, staffSchedule)
+    console.log(`🔧 Looking for dateKey: "${dateKey}" or ISO: "${isoDateKey}"`)
+    console.log(`🔧 staffSchedule for ${staffMember._id}:`, staffSchedule)
     
-    // Try exact match first
-    if (staffSchedule[dateKey]) {
-      const shiftType = staffSchedule[dateKey]
+    // Check for leave schedule first (from time off requests)
+    if (staffMember.leaveSchedule) {
+      if (staffMember.leaveSchedule[isoDateKey] || staffMember.leaveSchedule[dateKey]) {
+        const leaveInfo = staffMember.leaveSchedule[isoDateKey] || staffMember.leaveSchedule[dateKey]
+        console.log(`🔧 ✅ Found leave schedule: ${leaveInfo.type || 'leave'} for ${staffMember.name} on ${isoDateKey}`)
+        
+        return {
+          name: `${(leaveInfo.type || 'leave').charAt(0).toUpperCase() + (leaveInfo.type || 'leave').slice(1)} Leave`,
+          time: 'Off Duty',
+          color: 'bg-orange-100 text-orange-800'
+        }
+      }
+    }
+    
+    // Try to find schedule data with multiple date formats
+    let shiftType = staffSchedule[dateKey] || staffSchedule[isoDateKey]
+    
+    // Also check if there's schedule data in other formats
+    if (!shiftType) {
+      // Try to find by matching any date format
+      for (const key of Object.keys(staffSchedule)) {
+        try {
+          const keyDate = new Date(key)
+          if (keyDate.toDateString() === dateKey || keyDate.toISOString().split('T')[0] === isoDateKey) {
+            shiftType = staffSchedule[key]
+            console.log(`🔧 ✅ Found shift via alternate format: ${shiftType} for ${staffMember.name}`)
+            break
+          }
+        } catch (e) {
+          // Skip invalid date keys
+          continue
+        }
+      }
+    }
+    
+    if (shiftType) {
       console.log(`🔧 ✅ Found scheduled shift: ${shiftType} for ${staffMember.name} on ${dateKey}`)
       
-      // Map shift types to display information based on role
-      const shifts = shiftSchedules[staffMember.role] || shiftSchedules.default
-      
-      // Find matching shift by type
-      let matchingShift = null
-      switch (shiftType) {
-        case 'morning':
-          matchingShift = shifts.find(s => s.name.toLowerCase().includes('morning') || s.name.toLowerCase().includes('day'))
-          break
-        case 'afternoon':
-        case 'evening':
-          matchingShift = shifts.find(s => s.name.toLowerCase().includes('afternoon') || s.name.toLowerCase().includes('evening'))
-          break
-        case 'night':
-          matchingShift = shifts.find(s => s.name.toLowerCase().includes('night'))
-          break
-        case 'emergency':
-          matchingShift = shifts.find(s => s.name.toLowerCase().includes('emergency')) || {
-            name: 'Emergency',
-            time: 'On-call',
-            color: 'bg-red-100 text-red-800'
-          }
-          break
-        case 'off':
-          console.log(`🔧 Staff ${staffMember.name} is off on ${dateKey}`)
-          return null
-        default:
-          matchingShift = shifts[0] // Default to first shift
+      // Handle leave shifts specially
+      if (typeof shiftType === 'object' && (shiftType.shift === 'leave' || shiftType.type)) {
+        return {
+          name: `${(shiftType.type || 'leave').charAt(0).toUpperCase() + (shiftType.type || 'leave').slice(1)} Leave`,
+          time: 'Off Duty',
+          color: 'bg-orange-100 text-orange-800'
+        }
       }
       
-      console.log(`🔧 Returning shift:`, matchingShift)
-      return matchingShift || shifts[0]
+      // Handle string shift types
+      if (typeof shiftType === 'string') {
+        // Handle leave as string
+        if (shiftType === 'leave' || shiftType.includes('leave')) {
+          return {
+            name: 'Leave',
+            time: 'Off Duty',
+            color: 'bg-orange-100 text-orange-800'
+          }
+        }
+        
+        // Map shift types to display information based on role
+        const shifts = shiftSchedules[staffMember.role] || shiftSchedules.default
+        
+        // Find matching shift by type
+        let matchingShift = null
+        switch (shiftType.toLowerCase()) {
+          case 'morning':
+            matchingShift = shifts.find(s => s.name.toLowerCase().includes('morning') || s.name.toLowerCase().includes('day'))
+            break
+          case 'afternoon':
+          case 'evening':
+            matchingShift = shifts.find(s => s.name.toLowerCase().includes('afternoon') || s.name.toLowerCase().includes('evening'))
+            break
+          case 'night':
+            matchingShift = shifts.find(s => s.name.toLowerCase().includes('night'))
+            break
+          case 'emergency':
+            matchingShift = shifts.find(s => s.name.toLowerCase().includes('emergency')) || {
+              name: 'Emergency',
+              time: 'On-call',
+              color: 'bg-red-100 text-red-800'
+            }
+            break
+          case 'off':
+            console.log(`🔧 Staff ${staffMember.name} is off on ${dateKey}`)
+            return null
+          case 'absent':
+            return {
+              name: 'Absent',
+              time: 'Unexcused',
+              color: 'bg-red-100 text-red-800'
+            }
+          default:
+            matchingShift = shifts[0] // Default to first shift
+        }
+        
+        console.log(`🔧 Returning scheduled shift:`, matchingShift)
+        return matchingShift || shifts[0]
+      }
     } else {
       console.log(`🔧 ❌ No schedule found for ${staffMember.name} on ${dateKey}`)
       console.log(`🔧 Available dates for this staff:`, Object.keys(staffSchedule))
     }
     
-    // Fallback: use staff member's current shift if it's today
+    // Only for TODAY: use staff member's current shift if no scheduled data exists
     const today = new Date()
     if (date.toDateString() === today.toDateString() && staffMember.currentShift && staffMember.currentShift !== 'off') {
-      console.log(`🔧 Using current shift for ${staffMember.name}: ${staffMember.currentShift}`)
+      console.log(`🔧 Using current shift for ${staffMember.name} TODAY ONLY: ${staffMember.currentShift}`)
       const shifts = shiftSchedules[staffMember.role] || shiftSchedules.default
       const currentShiftType = staffMember.currentShift
       
@@ -2741,7 +3124,10 @@ const AssignPatientModal = ({ staff, onClose, onStaffUpdate }) => {
     if (selectedStaff && !availableStaff.find(member => member._id === selectedStaff)) {
       console.log('🔄 Selected staff member is no longer available, resetting selection')
       setSelectedStaff('')
-      toast.info('Selected staff member is no longer available. Please select another staff member.')
+      toast('Selected staff member is no longer available. Please select another staff member.', {
+        icon: 'ℹ️',
+        duration: 4000
+      })
     }
   }, [selectedStaff, availableStaff])
 
