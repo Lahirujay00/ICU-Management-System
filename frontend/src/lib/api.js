@@ -174,6 +174,13 @@ class ApiClient {
     })
   }
 
+  async clearStaffSchedule(id) {
+    return this.request(`/staff/${id}/schedule`, {
+      method: 'POST',
+      body: JSON.stringify({}), // Send empty object to clear all schedules
+    })
+  }
+
   // Equipment endpoints
   async getEquipment() {
     return this.request('/equipment')

@@ -1155,6 +1155,7 @@ export default function StaffOverview({ detailed = false }) {
             setSelectedStaffForCalendar(null)
           }}
           onUpdateSchedule={handleUpdateSchedule}
+          setStaffSchedules={setStaffSchedules}
         />
       )}
 
@@ -1661,7 +1662,7 @@ function StaffDetailModal({ staff, onClose }) {
 }
 
 // Calendar Schedule Modal Component
-const CalendarScheduleModal = ({ staff, selectedStaffId, onClose, onUpdateSchedule }) => {
+const CalendarScheduleModal = ({ staff, selectedStaffId, onClose, onUpdateSchedule, setStaffSchedules }) => {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState(null)
   const [schedules, setSchedules] = useState({})
@@ -2113,11 +2114,35 @@ const CalendarScheduleModal = ({ staff, selectedStaffId, onClose, onUpdateSchedu
               {/* Clear Schedule Button */}
               {Object.keys(schedules).length > 0 && (
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     if (confirm('Are you sure you want to clear all scheduled shifts? This action cannot be undone.')) {
-                      setSchedules({})
-                      localStorage.removeItem(`schedule_${selectedStaffId}`)
-                      toast.success('📅 Schedule cleared successfully')
+                      try {
+                        // Clear schedule in database
+                        await apiClient.clearStaffSchedule(selectedStaffId)
+                        
+                        // Clear local state and localStorage
+                        setSchedules({})
+                        localStorage.removeItem(`schedule_${selectedStaffId}`)
+                        
+                        // Update the parent component's staffSchedules state
+                        setStaffSchedules(prev => ({
+                          ...prev,
+                          [selectedStaffId]: {}
+                        }))
+                        
+                        toast.success('📅 Schedule cleared successfully')
+                      } catch (error) {
+                        // Improved error logging
+                        if (error.response) {
+                          error.response.json().then(data => {
+                            console.error('Failed to clear schedule:', data)
+                            toast.error(`❌ Failed to clear schedule: ${data.error?.message || 'Unknown error'}`)
+                          })
+                        } else {
+                          console.error('Failed to clear schedule:', error)
+                          toast.error(`❌ Failed to clear schedule: ${error.message}`)
+                        }
+                      }
                     }
                   }}
                   className="w-full px-3 py-2 bg-red-100 text-red-800 border border-red-300 rounded-lg hover:bg-red-200 transition-colors text-sm"
