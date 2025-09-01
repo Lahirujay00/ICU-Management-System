@@ -2120,9 +2120,10 @@ const CalendarScheduleModal = ({ staff, selectedStaffId, onClose, onUpdateSchedu
                         // Clear schedule in database
                         await apiClient.clearStaffSchedule(selectedStaffId)
                         
-                        // Clear local state and localStorage
+                        // Clear local state and localStorage (both keys)
                         setSchedules({})
                         localStorage.removeItem(`schedule_${selectedStaffId}`)
+                        localStorage.removeItem(`staff_schedule_${selectedStaffId}`)
                         
                         // Update the parent component's staffSchedules state
                         setStaffSchedules(prev => ({
