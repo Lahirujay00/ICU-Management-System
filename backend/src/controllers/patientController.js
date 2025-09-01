@@ -123,7 +123,8 @@ export const createPatient = async (req, res) => {
       ...req.body,
       roomNumber: req.body.bedNumber || req.body.roomNumber, // Map bedNumber to roomNumber
       bedNumber: req.body.bedNumber || req.body.roomNumber, // Ensure bedNumber is also set
-      admissionDate: req.body.admissionDate || new Date()
+      admissionDate: req.body.admissionDate || new Date(),
+      medicalRecordNumber: req.body.medicalRecordNumber || `MRN-${Date.now()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}` // Auto-generate if missing
     };
     
     console.log('Mapped patient data:', patientData);

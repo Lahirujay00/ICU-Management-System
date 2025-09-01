@@ -13,6 +13,7 @@ import staffRoutes from './routes/staff.js';
 import equipmentRoutes from './routes/equipment.js';
 import dashboardRoutes from './routes/dashboard.js';
 import dischargeHistoryRoutes from './routes/dischargeHistory.js';
+import bedRoutes from './routes/beds.js';
 
 const app = express();
 const PORT = process.env.BACKEND_PORT || process.env.PORT || 5000;
@@ -65,6 +66,7 @@ app.use('/api/staff', staffRoutes);
 app.use('/api/equipment', equipmentRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/discharge-history', dischargeHistoryRoutes);
+app.use('/api/beds', bedRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

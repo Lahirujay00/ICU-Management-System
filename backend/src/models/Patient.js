@@ -95,12 +95,18 @@ const patientSchema = new mongoose.Schema({
   },
   roomNumber: {
     type: String,
-    required: [true, 'Room number is required'],
-    trim: true
+    trim: true,
+    default: null
   },
   bedNumber: {
     type: String,
-    required: [true, 'Bed number is required'],
+    trim: true,
+    default: null
+  },
+  medicalRecordNumber: {
+    type: String,
+    required: [true, 'Medical record number is required'],
+    unique: true,
     trim: true
   },
   patientId: {

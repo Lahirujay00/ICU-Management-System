@@ -144,14 +144,16 @@ export default function PatientsPage() {
         age: data.dateOfBirth ? calculateAge(data.dateOfBirth) : 25,
         gender: data.gender,
         diagnosis: data.diagnosis,
-        bedNumber: data.bedNumber || `BED-${Date.now()}`,
+        bedNumber: data.bedNumber || '',
         attendingPhysician: data.admittingPhysician || 'Not Assigned',
         patientId: data.patientId || `PAT-${Date.now()}`,
+        medicalRecordNumber: data.medicalRecordNumber || `MRN-${Date.now()}`,
         contactNumber: data.contactNumber || ''
       };
       
       console.log('🔄 Transformed data for API:', transformedData);
       console.log('🌐 API URL:', `${API_BASE_URL}/patients`);
+      console.log('🔍 Debug - Medical Record Number:', data.medicalRecordNumber);
       
       console.log('🔄 Patients state before API call:', patients.length);
       
@@ -572,6 +574,20 @@ export default function PatientsPage() {
                     className="input-field" 
                     placeholder="Auto-generated if empty"
                   />
+                </div>
+                
+                <div>
+                  <label htmlFor="medicalRecordNumber" className="form-label">
+                    Medical Record Number <span className="text-red-500">*</span>
+                  </label>
+                  <input 
+                    type="text" 
+                    id="medicalRecordNumber" 
+                    {...register('medicalRecordNumber', { required: 'Medical Record Number is required' })} 
+                    className={`input-field ${errors.medicalRecordNumber ? 'border-red-300' : ''}`}
+                    placeholder="Enter medical record number"
+                  />
+                  {errors.medicalRecordNumber && <p className="text-red-500 text-sm mt-1">{errors.medicalRecordNumber.message}</p>}
                 </div>
               </div>
             </div>

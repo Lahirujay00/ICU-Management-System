@@ -8,6 +8,7 @@ export default function PatientAdmissionModal({ isOpen, onClose, onAdmit }) {
     name: '',
     age: '',
     gender: '',
+    medicalRecordNumber: '',
     patientId: '',
     bedNumber: '',
     diagnosis: '',
@@ -54,6 +55,7 @@ export default function PatientAdmissionModal({ isOpen, onClose, onAdmit }) {
       name: '',
       age: '',
       gender: '',
+      medicalRecordNumber: '',
       patientId: '',
       bedNumber: '',
       diagnosis: '',
@@ -147,46 +149,59 @@ export default function PatientAdmissionModal({ isOpen, onClose, onAdmit }) {
             </div>
 
             <div>
+              <label htmlFor="medicalRecordNumber" className="block text-sm font-medium text-gray-700 mb-2">
+                Medical Record Number *
+              </label>
+              <input
+                type="text"
+                id="medicalRecordNumber"
+                name="medicalRecordNumber"
+                required
+                value={formData.medicalRecordNumber}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Medical record number"
+              />
+            </div>
+
+            <div>
               <label htmlFor="patientId" className="block text-sm font-medium text-gray-700 mb-2">
-                Patient ID *
+                Patient ID
               </label>
               <input
                 type="text"
                 id="patientId"
                 name="patientId"
-                required
                 value={formData.patientId}
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Unique patient identifier"
+                placeholder="Additional patient identifier"
               />
             </div>
 
             <div>
               <label htmlFor="bedNumber" className="block text-sm font-medium text-gray-700 mb-2">
-                Bed Number *
+                Bed Number
               </label>
               <input
                 type="text"
                 id="bedNumber"
                 name="bedNumber"
-                required
                 value={formData.bedNumber}
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="ICU bed assignment"
+                placeholder="ICU bed assignment (optional)"
               />
             </div>
 
             <div>
               <label htmlFor="attendingPhysician" className="block text-sm font-medium text-gray-700 mb-2">
-                Attending Physician *
+                Attending Physician
               </label>
               <input
                 type="text"
                 id="attendingPhysician"
                 name="attendingPhysician"
-                required
                 value={formData.attendingPhysician}
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"

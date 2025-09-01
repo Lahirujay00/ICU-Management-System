@@ -242,6 +242,12 @@ class ApiClient {
     })
   }
 
+  async dischargePatientFromBed(bedId) {
+    return this.request(`/beds/${bedId}/discharge`, {
+      method: 'POST',
+    })
+  }
+
   async updateBedStatus(bedId, status) {
     return this.request(`/beds/${bedId}/status`, {
       method: 'PUT',
