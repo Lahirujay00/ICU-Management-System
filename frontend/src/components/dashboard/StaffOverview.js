@@ -1911,7 +1911,9 @@ const CalendarScheduleModal = ({ staff, selectedStaffId, onClose, onUpdateSchedu
 
   // Get shift color
   const getShiftColor = (shift) => {
-    const option = getShiftOptions().find(opt => opt.value === shift)
+    // Handle both string shifts and object shifts
+    const shiftValue = typeof shift === 'object' ? shift.shift || shift.type || 'unknown' : shift;
+    const option = getShiftOptions().find(opt => opt.value === shiftValue)
     return option?.color || 'bg-gray-100 text-gray-800'
   }
 
@@ -2040,7 +2042,12 @@ const CalendarScheduleModal = ({ staff, selectedStaffId, onClose, onUpdateSchedu
                       </div>
                       {shift && isCurrentMonth && (
                         <div className={`text-xs px-1.5 py-1 rounded-lg flex items-center justify-center text-center font-medium leading-tight whitespace-nowrap ${getShiftColor(shift)}`}>
-                          {shift === 'off' ? 'Off' : shift.charAt(0).toUpperCase() + shift.slice(1)}
+                          {(() => {
+                            // Handle both string shifts and object shifts
+                            const shiftValue = typeof shift === 'object' ? shift.shift || shift.type || 'unknown' : shift;
+                            return shiftValue === 'off' || shiftValue === 'time_off' ? 'Off' : 
+                                   typeof shiftValue === 'string' ? shiftValue.charAt(0).toUpperCase() + shiftValue.slice(1) : 'N/A';
+                          })()}
                         </div>
                       )}
                     </div>
@@ -2114,7 +2121,16 @@ const CalendarScheduleModal = ({ staff, selectedStaffId, onClose, onUpdateSchedu
                   <h5 className="text-sm font-medium text-blue-800 mb-2">Scheduled Days: {Object.keys(schedules).length}</h5>
                   <div className="text-xs text-blue-700 space-y-1 max-h-20 overflow-y-auto">
                     {Object.entries(schedules).slice(0, 3).map(([date, shift]) => (
-                      <div key={date}>{new Date(date).toLocaleDateString()} - {shift}</div>
+                      <div key={date}>
+                        {new Date(date).toLocaleDateString()} - {
+                          (() => {
+                            // Handle both string shifts and object shifts
+                            const shiftValue = typeof shift === 'object' ? shift.shift || shift.type || 'unknown' : shift;
+                            return shiftValue === 'off' || shiftValue === 'time_off' ? 'Off' : 
+                                   typeof shiftValue === 'string' ? shiftValue.charAt(0).toUpperCase() + shiftValue.slice(1) : 'N/A';
+                          })()
+                        }
+                      </div>
                     ))}
                     {Object.keys(schedules).length > 3 && (
                       <div className="text-blue-600">... and {Object.keys(schedules).length - 3} more</div>
