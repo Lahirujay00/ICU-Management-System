@@ -2791,15 +2791,32 @@ const ScheduleShiftModal = ({ staff, preSelectedStaffId, onClose, onUpdateSchedu
       
       // Handle leave shifts specially
       if (typeof shiftType === 'object' && (shiftType.shift === 'leave' || shiftType.shift === 'time_off' || shiftType.type)) {
-        const shiftName = shiftType.shift === 'time_off' ? 'Time Off' : (shiftType.type || 'leave');
-        const displayName = shiftName.charAt(0).toUpperCase() + shiftName.slice(1) + (shiftName === 'Time Off' ? '' : ' Leave');
-        const timeText = shiftType.shift === 'time_off' ? 'Approved Leave' : 'Off Duty';
-        const colorClass = shiftType.shift === 'time_off' ? 'bg-pink-100 text-pink-800' : 'bg-orange-100 text-orange-800';
-        
-        return {
-          name: displayName,
-          time: timeText,
-          color: colorClass
+        if (shiftType.shift === 'time_off') {
+          // Handle time off with type information
+          const timeOffTypeDisplay = {
+            'vacation': 'Vacation',
+            'sick': 'Sick Leave', 
+            'personal': 'Personal Leave',
+            'emergency': 'Emergency Leave',
+            'maternity': 'Maternity/Paternity Leave',
+            'training': 'Training/Conference'
+          };
+          
+          return {
+            name: 'Time Off',
+            time: timeOffTypeDisplay[shiftType.type] || 'Time Off Type',
+            color: 'bg-pink-100 text-pink-800'
+          }
+        } else {
+          // Handle regular leave
+          const shiftName = shiftType.type || 'leave';
+          const displayName = shiftName.charAt(0).toUpperCase() + shiftName.slice(1) + ' Leave';
+          
+          return {
+            name: displayName,
+            time: 'Off Duty',
+            color: 'bg-orange-100 text-orange-800'
+          }
         }
       }
       
@@ -2818,7 +2835,7 @@ const ScheduleShiftModal = ({ staff, preSelectedStaffId, onClose, onUpdateSchedu
         if (shiftType === 'time_off' || shiftType.includes('time_off')) {
           return {
             name: 'Time Off',
-            time: 'Approved Leave',
+            time: 'Time Off Type',
             color: 'bg-pink-100 text-pink-800'
           }
         }
@@ -2853,7 +2870,7 @@ const ScheduleShiftModal = ({ staff, preSelectedStaffId, onClose, onUpdateSchedu
             console.log(`🔧 Staff ${staffMember.name} has time off on ${dateKey}`)
             return {
               name: 'Time Off',
-              time: 'Approved Leave',
+              time: 'Time Off Type',
               color: 'bg-pink-100 text-pink-800'
             }
           case 'absent':

@@ -504,7 +504,11 @@ export const requestTimeOff = async (req, res) => {
     // Add time_off for each day in the range
     for (let date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
       const dateKey = date.toDateString();
-      timeOffSchedules[dateKey] = 'time_off';
+      timeOffSchedules[dateKey] = {
+        shift: 'time_off',
+        type: type,
+        reason: reason
+      };
     }
     
     // Get existing calendar schedules or create empty map

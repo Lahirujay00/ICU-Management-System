@@ -39,7 +39,7 @@ const staffSchema = new mongoose.Schema({
   
   // Schedule and Availability
   schedules: [scheduleSchema],
-  calendarSchedules: { type: Map, of: String, default: new Map() }, // Simple date-to-shift mapping for calendar
+  calendarSchedules: { type: Map, of: mongoose.Schema.Types.Mixed, default: new Map() }, // Allow objects or strings for calendar
   availability: {
     monday: { type: Boolean, default: true },
     tuesday: { type: Boolean, default: true },
