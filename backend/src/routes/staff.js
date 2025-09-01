@@ -44,6 +44,7 @@ router.delete('/:id', staffController.deleteStaff); // Removed roleMiddleware fo
 // Staff-specific operations
 router.get('/:id/schedule', staffController.getStaffSchedule);
 router.post('/:id/schedule', staffController.updateStaffSchedule); // Removed roleMiddleware for development
+router.post('/:id/time-off', staffController.requestTimeOff); // Time off request endpoint
 router.get('/:id/patients', staffController.getStaffPatients);
 router.put('/:id/status', staffController.updateStaffStatus); // Removed roleMiddleware for development
 

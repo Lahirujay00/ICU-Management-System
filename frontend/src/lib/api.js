@@ -181,6 +181,14 @@ class ApiClient {
     })
   }
 
+  async requestTimeOff(staffId, timeOffData) {
+    console.log('🔧 API: Requesting time off for staff:', staffId, 'with data:', timeOffData)
+    return this.request(`/staff/${staffId}/time-off`, {
+      method: 'POST',
+      body: JSON.stringify(timeOffData),
+    })
+  }
+
   // Equipment endpoints
   async getEquipment() {
     return this.request('/equipment')

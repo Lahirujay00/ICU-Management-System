@@ -901,25 +901,36 @@ export default function StaffOverview({ detailed = false }) {
                             <div className="text-xs">
                               <div className={`flex items-center gap-1 mb-1 ${
                                 currentShiftInfo.shift === 'leave' ? 'text-orange-600' :
+                                currentShiftInfo.shift === 'time_off' ? 'text-pink-600' :
                                 currentShiftInfo.shift === 'absent' ? 'text-red-600' :
                                 currentShiftInfo.isCurrentTime ? 'text-blue-600' : 'text-gray-500'
                               }`}>
                                 <Clock className="w-3 h-3" />
                                 <span className="font-medium">
                                   {currentShiftInfo.shift === 'leave' ? 'On Leave' : 
+                                   currentShiftInfo.shift === 'time_off' ? 'Time Off' :
                                    currentShiftInfo.shift === 'absent' ? 'Absent' :
                                    `${currentShiftInfo.display} Shift`}
-                                  {member.isOnDuty && currentShiftInfo.isCurrentTime && currentShiftInfo.shift !== 'leave' && currentShiftInfo.shift !== 'absent' && (
+                                  {member.isOnDuty && currentShiftInfo.isCurrentTime && 
+                                   currentShiftInfo.shift !== 'leave' && 
+                                   currentShiftInfo.shift !== 'time_off' && 
+                                   currentShiftInfo.shift !== 'absent' && (
                                     <span className="ml-1 text-green-600">● ACTIVE</span>
                                   )}
                                 </span>
                               </div>
-                              {currentShiftInfo.shift !== 'leave' && currentShiftInfo.shift !== 'absent' && currentShiftInfo.timeRange && (
+                              {currentShiftInfo.shift !== 'leave' && 
+                               currentShiftInfo.shift !== 'time_off' && 
+                               currentShiftInfo.shift !== 'absent' && 
+                               currentShiftInfo.timeRange && (
                                 <div className="text-gray-500 text-xs pl-4">
                                   {getShiftTimeDisplay(member.role, currentShiftInfo.shift)}
                                 </div>
                               )}
-                              {!currentShiftInfo.isCurrentTime && currentShiftInfo.shift !== 'leave' && currentShiftInfo.shift !== 'absent' && (
+                              {!currentShiftInfo.isCurrentTime && 
+                               currentShiftInfo.shift !== 'leave' && 
+                               currentShiftInfo.shift !== 'time_off' && 
+                               currentShiftInfo.shift !== 'absent' && (
                                 <div className="text-gray-400 text-xs pl-4 italic">
                                   Scheduled for today
                                 </div>
@@ -1173,6 +1184,7 @@ export default function StaffOverview({ detailed = false }) {
         <TimeOffModal 
           staff={staff}
           onClose={() => setShowTimeOffModal(false)}
+          setStaffSchedules={setStaffSchedules}
         />
       )}
 
@@ -2778,11 +2790,16 @@ const ScheduleShiftModal = ({ staff, preSelectedStaffId, onClose, onUpdateSchedu
       console.log(`🔧 ✅ Found scheduled shift: ${shiftType} for ${staffMember.name} on ${dateKey}`)
       
       // Handle leave shifts specially
-      if (typeof shiftType === 'object' && (shiftType.shift === 'leave' || shiftType.type)) {
+      if (typeof shiftType === 'object' && (shiftType.shift === 'leave' || shiftType.shift === 'time_off' || shiftType.type)) {
+        const shiftName = shiftType.shift === 'time_off' ? 'Time Off' : (shiftType.type || 'leave');
+        const displayName = shiftName.charAt(0).toUpperCase() + shiftName.slice(1) + (shiftName === 'Time Off' ? '' : ' Leave');
+        const timeText = shiftType.shift === 'time_off' ? 'Approved Leave' : 'Off Duty';
+        const colorClass = shiftType.shift === 'time_off' ? 'bg-pink-100 text-pink-800' : 'bg-orange-100 text-orange-800';
+        
         return {
-          name: `${(shiftType.type || 'leave').charAt(0).toUpperCase() + (shiftType.type || 'leave').slice(1)} Leave`,
-          time: 'Off Duty',
-          color: 'bg-orange-100 text-orange-800'
+          name: displayName,
+          time: timeText,
+          color: colorClass
         }
       }
       
@@ -2794,6 +2811,15 @@ const ScheduleShiftModal = ({ staff, preSelectedStaffId, onClose, onUpdateSchedu
             name: 'Leave',
             time: 'Off Duty',
             color: 'bg-orange-100 text-orange-800'
+          }
+        }
+        
+        // Handle time_off as string
+        if (shiftType === 'time_off' || shiftType.includes('time_off')) {
+          return {
+            name: 'Time Off',
+            time: 'Approved Leave',
+            color: 'bg-pink-100 text-pink-800'
           }
         }
         
@@ -2823,6 +2849,13 @@ const ScheduleShiftModal = ({ staff, preSelectedStaffId, onClose, onUpdateSchedu
           case 'off':
             console.log(`🔧 Staff ${staffMember.name} is off on ${dateKey}`)
             return null
+          case 'time_off':
+            console.log(`🔧 Staff ${staffMember.name} has time off on ${dateKey}`)
+            return {
+              name: 'Time Off',
+              time: 'Approved Leave',
+              color: 'bg-pink-100 text-pink-800'
+            }
           case 'absent':
             return {
               name: 'Absent',
@@ -3445,25 +3478,44 @@ const AssignPatientModal = ({ staff, onClose, onStaffUpdate }) => {
 }
 
 // Time Off Modal Component
-const TimeOffModal = ({ staff, onClose }) => {
+const TimeOffModal = ({ staff, onClose, setStaffSchedules }) => {
   const [selectedStaff, setSelectedStaff] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [reason, setReason] = useState('')
   const [type, setType] = useState('vacation')
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!selectedStaff || !startDate || !endDate || !reason) {
       toast.error('Please fill in all required fields')
       return
     }
 
-    const staffMember = staff.find(s => s._id === selectedStaff)
-    toast.success(`✅ Time off request submitted for ${staffMember?.name}`)
-    
-    // TODO: Implement actual time off request API call
-    console.log('Time off request:', { selectedStaff, startDate, endDate, reason, type })
-    onClose()
+    try {
+      const staffMember = staff.find(s => s._id === selectedStaff)
+      
+      // Call the actual API
+      const response = await apiClient.requestTimeOff(selectedStaff, {
+        startDate,
+        endDate,
+        type,
+        reason
+      })
+      
+      console.log('✅ Time off request successful:', response)
+      
+      // Update the parent staffSchedules state to reflect the change immediately
+      setStaffSchedules(prev => ({
+        ...prev,
+        [selectedStaff]: response.schedules || {}
+      }))
+      
+      toast.success(`✅ Time off request submitted successfully for ${staffMember?.name}`)
+      onClose()
+    } catch (error) {
+      console.error('❌ Failed to submit time off request:', error)
+      toast.error('❌ Failed to submit time off request. Please try again.')
+    }
   }
 
   return (

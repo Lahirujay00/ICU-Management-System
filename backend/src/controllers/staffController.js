@@ -465,3 +465,68 @@ export const unassignPatientFromStaff = async (req, res) => {
     sendError(res, 500, 'Server error while unassigning patient from staff');
   }
 };
+
+// Request time off
+export const requestTimeOff = async (req, res) => {
+  console.log('🔧 BACKEND: Received time off request for staff ID:', req.params.id);
+  console.log('Time off data:', req.body);
+  
+  try {
+    const { startDate, endDate, type = 'vacation', reason } = req.body;
+    
+    if (!startDate || !endDate || !reason) {
+      return sendError(res, 400, 'Start date, end date, and reason are required');
+    }
+
+    // Check if MongoDB is connected
+    const isMongoConnected = mongoose.connection.readyState === 1;
+    console.log('MongoDB connection state:', mongoose.connection.readyState);
+    
+    if (!isMongoConnected) {
+      console.log('⚠️ MongoDB not connected, using mock response');
+      return res.json({ 
+        message: `Mock: Time off request submitted for staff ${req.params.id}`, 
+        timeOff: { startDate, endDate, type, reason }
+      });
+    }
+
+    let staff = await Staff.findById(req.params.id);
+    if (!staff) {
+      console.log('❌ BACKEND: Staff not found with ID:', req.params.id);
+      return sendError(res, 404, 'Staff not found');
+    }
+
+    // Create date range from start to end date
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const timeOffSchedules = {};
+    
+    // Add time_off for each day in the range
+    for (let date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
+      const dateKey = date.toDateString();
+      timeOffSchedules[dateKey] = 'time_off';
+    }
+    
+    // Get existing calendar schedules or create empty map
+    const existingSchedules = staff.calendarSchedules ? Object.fromEntries(staff.calendarSchedules) : {};
+    
+    // Merge time off with existing schedules
+    const mergedSchedules = { ...existingSchedules, ...timeOffSchedules };
+    
+    // Update the calendarSchedules field
+    staff.calendarSchedules = new Map(Object.entries(mergedSchedules));
+    await staff.save();
+    
+    const savedSchedules = Object.fromEntries(staff.calendarSchedules);
+    console.log('✅ Time off request processed and saved to database:', savedSchedules);
+    
+    res.json({ 
+      message: `Time off request submitted successfully for staff ${req.params.id}`, 
+      schedules: savedSchedules,
+      timeOffDays: Object.keys(timeOffSchedules).length
+    });
+  } catch (err) {
+    console.error('❌ Error processing time off request:', err.message);
+    sendError(res, 500, 'Server error while processing time off request');
+  }
+};
