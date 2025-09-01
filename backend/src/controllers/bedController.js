@@ -23,12 +23,18 @@ export const getAllBeds = async (req, res) => {
     // Create a map of bed assignments from patients
     const bedAssignments = {};
     patients.forEach(patient => {
-      bedAssignments[patient.bedNumber] = patient;
+      // Handle both formats: "11" -> "BED-11" and "BED-11" -> "BED-11"
+      let bedKey = String(patient.bedNumber);
+      if (!bedKey.startsWith('BED-')) {
+        bedKey = `BED-${bedKey.padStart(2, '0')}`;
+      }
+      bedAssignments[bedKey] = patient;
     });
     
     // Combine bed info with patient assignments
     const bedsWithPatients = beds.map(bed => {
-      const patient = bedAssignments[bed.number];
+      const bedKey = String(bed.number);
+      const patient = bedAssignments[bedKey];
       
       // Update bed status based on patient assignment
       let bedStatus = bed.status;
@@ -444,5 +450,45 @@ export const getAvailableBeds = async (req, res) => {
   } catch (error) {
     console.error('Error getting available beds:', error);
     res.status(500).json({ error: { message: 'Failed to get available beds' } });
+  }
+};
+
+// Auto-assign next available bed to patient
+export const autoAssignBed = async (patientId) => {
+  try {
+    console.log(`🏥 Auto-assigning bed for patient: ${patientId}`);
+    
+    // Find the next available bed
+    const availableBed = await Bed.findOne({ 
+      status: 'available'
+    }).sort({ number: 1 }); // Assign beds in order
+    
+    if (!availableBed) {
+      console.log('❌ No available beds found');
+      return null;
+    }
+    
+    // Get patient info
+    const patient = await Patient.findById(patientId);
+    if (!patient) {
+      console.log('❌ Patient not found');
+      return null;
+    }
+    
+    // Update patient with bed assignment
+    await Patient.findByIdAndUpdate(patientId, {
+      bedNumber: availableBed.number
+    });
+    
+    console.log(`✅ Auto-assigned bed ${availableBed.number} to patient ${patient.name}`);
+    
+    return {
+      bedNumber: availableBed.number,
+      bedId: availableBed._id,
+      message: `Auto-assigned to Bed ${availableBed.number}`
+    };
+  } catch (error) {
+    console.error('Error auto-assigning bed:', error);
+    return null;
   }
 };

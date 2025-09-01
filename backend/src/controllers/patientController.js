@@ -1,6 +1,7 @@
 import Patient from '../models/Patient.js';
 import { validationResult } from 'express-validator';
 import mongoose from 'mongoose';
+import { autoAssignBed } from './bedController.js';
 
 // Helper function for sending errors
 const sendError = (res, statusCode, message, errors = null) => {
@@ -133,6 +134,25 @@ export const createPatient = async (req, res) => {
     const patient = await newPatient.save();
     
     console.log('Patient saved successfully:', patient._id);
+    
+    // Auto-assign bed if no bed is specified
+    if (!patient.bedNumber) {
+      console.log('🏥 No bed specified, auto-assigning available bed...');
+      const bedAssignment = await autoAssignBed(patient._id);
+      
+      if (bedAssignment) {
+        console.log(`✅ Auto-assigned bed ${bedAssignment.bedNumber} to patient ${patient.name}`);
+        // Return updated patient with bed assignment
+        const updatedPatient = await Patient.findById(patient._id);
+        return res.status(201).json({
+          ...updatedPatient.toObject(),
+          bedAssignment: bedAssignment
+        });
+      } else {
+        console.log('⚠️ No available beds for auto-assignment');
+      }
+    }
+    
     res.status(201).json(patient);
   } catch (err) {
     console.error('Error creating patient:', err);

@@ -243,116 +243,180 @@ export default function BedManagement() {
         </button>
       </div>
 
-      {/* Bed Display - Simple List View */}
+      {/* ICU Bed List - Auto-assigned from Patient Table */}
       <div className="space-y-4">
-        {/* Grid Layout */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filteredBeds.map((bed) => (
-            <div
-              key={bed._id}
-              className={`card cursor-pointer transition-all duration-200 hover:shadow-lg ${
-                selectedBed?._id === bed._id ? 'ring-2 ring-blue-500' : ''
-              }`}
-              onClick={() => setSelectedBed(bed)}
-            >
-              {/* Bed Header */}
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold text-gray-900">{bed.number}</h3>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getBedStatusColor(bed.status)}`}>
-                  {bed.status}
-                </span>
-              </div>
-
-              {/* Bed Status Icon */}
-              <div className="flex justify-center mb-3">
-                {getBedStatusIcon(bed.status)}
-              </div>
-
-              {/* Patient Information */}
-              <div className="space-y-2 text-sm">
-                {bed.patient ? (
-                  <div className="space-y-1">
-                    <p className="font-medium text-gray-900">{bed.patient.name}</p>
-                    <p className="text-gray-600">MRN: {bed.patient.medicalRecordNumber}</p>
-                    <p className="text-gray-600">Admitted: {new Date(bed.patient.admissionDate).toLocaleDateString()}</p>
-                    <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                      bed.patient.status === 'critical' ? 'bg-red-100 text-red-800' :
-                      bed.patient.status === 'stable' ? 'bg-green-100 text-green-800' :
-                      'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {bed.patient.status}
-                    </span>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+          <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900">ICU Bed List</h3>
+            <p className="text-sm text-gray-600 mt-1">Patient assignments automatically synchronized from patient records</p>
+          </div>
+          
+          <div className="divide-y divide-gray-200">
+            {filteredBeds.map((bed, index) => (
+              <div
+                key={bed._id}
+                className={`flex items-start px-6 py-6 hover:bg-gray-50 transition-colors border-l-4 ${
+                  selectedBed?._id === bed._id 
+                    ? 'bg-blue-50 border-l-blue-500' 
+                    : bed.patient 
+                      ? 'border-l-green-500' 
+                      : 'border-l-gray-300'
+                }`}
+                onClick={() => setSelectedBed(bed)}
+              >
+                {/* Bed Number */}
+                <div className="flex-shrink-0 w-16">
+                  <div className="flex items-center justify-center w-12 h-12 bg-gray-100 rounded-lg">
+                    <Bed className="w-6 h-6 text-gray-600" />
                   </div>
-                ) : (
-                  <div className="text-center text-gray-500">
-                    <p>No patient assigned</p>
+                </div>
+
+                {/* Bed Info */}
+                <div className="flex-shrink-0 ml-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-xl font-semibold text-gray-900">Bed {bed.number}</h4>
+                      <p className="text-sm text-gray-500">ICU Unit</p>
+                    </div>
+                    <div className="text-right">
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getBedStatusColor(bed.status)}`}>
+                        {bed.status}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Patient Assignment (Auto from Patient Table) */}
+                <div className="flex-1 min-w-0 ml-6">
+                  {bed.patient ? (
+                    <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <h5 className="text-lg font-semibold text-gray-900">{bed.patient.name}</h5>
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${
+                          bed.patient.status === 'critical' ? 'bg-red-100 text-red-800 border border-red-200' :
+                          bed.patient.status === 'stable' ? 'bg-green-100 text-green-800 border border-green-200' :
+                          bed.patient.status === 'moderate' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
+                          'bg-gray-100 text-gray-800 border border-gray-200'
+                        }`}>
+                          {bed.patient.status}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="font-medium text-gray-600">MRN:</span>
+                          <span className="ml-2 text-gray-900">{bed.patient.medicalRecordNumber}</span>
+                        </div>
+                        <div>
+                          <span className="font-medium text-gray-600">Age:</span>
+                          <span className="ml-2 text-gray-900">{bed.patient.age} years</span>
+                        </div>
+                        <div>
+                          <span className="font-medium text-gray-600">Admitted:</span>
+                          <span className="ml-2 text-gray-900">{new Date(bed.patient.admissionDate).toLocaleDateString()}</span>
+                        </div>
+                        <div>
+                          <span className="font-medium text-gray-600">Days:</span>
+                          <span className="ml-2 text-gray-900">{Math.ceil((new Date() - new Date(bed.patient.admissionDate)) / (1000 * 60 * 60 * 24))} days</span>
+                        </div>
+                      </div>
+                      <div className="mt-2 pt-2 border-t border-gray-200">
+                        <span className="font-medium text-gray-600">Diagnosis:</span>
+                        <p className="text-sm text-gray-900 mt-1">{bed.patient.diagnosis}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 border-dashed">
+                      <div className="text-center">
+                        <div className="flex items-center justify-center mb-2">
+                          <User className="w-8 h-8 text-gray-400" />
+                        </div>
+                        <p className="text-gray-500 font-medium">No patient assigned</p>
+                        <p className="text-xs text-gray-400 mt-1">Auto-assigned when patient is admitted</p>
+                        {bed.status === 'available' && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              openPatientAssignmentModal(bed)
+                            }}
+                            className="mt-3 inline-flex items-center px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 transition-colors"
+                          >
+                            <UserPlus className="w-3 h-3 mr-1" />
+                            Assign Patient
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Actions */}
+                <div className="flex-shrink-0 ml-6">
+                  <div className="flex items-center space-x-2">
+                    {bed.patient && bed.status === 'occupied' && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handlePatientDischarge(bed._id)
+                        }}
+                        className="inline-flex items-center px-4 py-2 text-sm font-medium text-orange-700 bg-orange-100 border border-orange-200 rounded-lg hover:bg-orange-200 transition-colors"
+                      >
+                        <Clock className="w-4 h-4 mr-2" />
+                        Discharge & Clean
+                      </button>
+                    )}
+                    {bed.status === 'cleaning' && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleBedStatusChange(bed._id, 'available')
+                        }}
+                        className="inline-flex items-center px-4 py-2 text-sm font-medium text-green-700 bg-green-100 border border-green-200 rounded-lg hover:bg-green-200 transition-colors"
+                      >
+                        <CheckCircle className="w-4 h-4 mr-2" />
+                        Mark Available
+                      </button>
+                    )}
                     {bed.status === 'available' && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
-                          openPatientAssignmentModal(bed)
+                          handleBedStatusChange(bed._id, 'maintenance')
                         }}
-                        className="mt-2 text-xs text-blue-600 hover:text-blue-800 underline flex items-center gap-1 mx-auto"
+                        className="inline-flex items-center px-4 py-2 text-sm font-medium text-blue-700 bg-blue-100 border border-blue-200 rounded-lg hover:bg-blue-200 transition-colors"
                       >
-                        <UserPlus className="w-3 h-3" />
-                        Assign Patient
+                        <Settings className="w-4 h-4 mr-2" />
+                        Maintenance
+                      </button>
+                    )}
+                    {bed.status === 'maintenance' && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleBedStatusChange(bed._id, 'available')
+                        }}
+                        className="inline-flex items-center px-4 py-2 text-sm font-medium text-green-700 bg-green-100 border border-green-200 rounded-lg hover:bg-green-200 transition-colors"
+                      >
+                        <CheckCircle className="w-4 h-4 mr-2" />
+                        Complete
                       </button>
                     )}
                   </div>
-                )}
-              </div>
-
-              {/* Bed Actions */}
-              <div className="mt-3 pt-3 border-t border-gray-200">
-                <div className="flex gap-2">
-                  {bed.patient && bed.status === 'occupied' && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handlePatientDischarge(bed._id)
-                      }}
-                      className="flex-1 px-2 py-1 text-xs bg-orange-100 text-orange-800 rounded hover:bg-orange-200"
-                    >
-                      Discharge & Clean
-                    </button>
-                  )}
-                  {bed.status === 'cleaning' && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleBedStatusChange(bed._id, 'available')
-                      }}
-                      className="flex-1 px-2 py-1 text-xs bg-green-100 text-green-800 rounded hover:bg-green-200"
-                    >
-                      Mark Available
-                    </button>
-                  )}
-                  {bed.status === 'available' && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleBedStatusChange(bed._id, 'maintenance')
-                      }}
-                      className="flex-1 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded hover:bg-blue-200"
-                    >
-                      Maintenance
-                    </button>
-                  )}
-                  {bed.status === 'maintenance' && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleBedStatusChange(bed._id, 'available')
-                      }}
-                      className="flex-1 px-2 py-1 text-xs bg-green-100 text-green-800 rounded hover:bg-green-200"
-                    >
-                      Complete Maintenance
-                    </button>
-                  )}
                 </div>
               </div>
+            ))}
+          </div>
+
+          {filteredBeds.length === 0 && (
+            <div className="px-6 py-8 text-center">
+              <Bed className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-2 text-sm font-medium text-gray-900">No beds found</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                {filterStatus === 'all' 
+                  ? 'No beds have been set up yet.' 
+                  : `No beds with ${filterStatus} status.`}
+              </p>
             </div>
-          ))}
+          )}
         </div>
       </div>      {/* Bed Details Sidebar */}
       {selectedBed && (
