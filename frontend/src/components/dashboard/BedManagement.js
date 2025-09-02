@@ -274,7 +274,7 @@ export default function BedManagement() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
                       <div>
-                        <h4 className="text-lg font-medium text-gray-900">Bed {bed.number}</h4>
+                        <h4 className="text-lg font-medium text-gray-900">{bed.number}</h4>
                         <p className="text-sm text-gray-500">ICU Unit</p>
                       </div>
                       
@@ -286,7 +286,7 @@ export default function BedManagement() {
                           </div>
                           <div>
                             <p className="text-sm font-medium text-gray-900">{bed.patient.name}</p>
-                            <p className="text-xs text-gray-500">MRN: {bed.patient.medicalRecordNumber}</p>
+                            <p className="text-xs text-gray-500">{bed.patient.medicalRecordNumber}</p>
                           </div>
                         </div>
                       ) : (
