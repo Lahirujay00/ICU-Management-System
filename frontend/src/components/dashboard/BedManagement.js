@@ -264,8 +264,18 @@ export default function BedManagement() {
               >
                 {/* Bed Icon */}
                 <div className="flex-shrink-0">
-                  <div className="flex items-center justify-center w-10 h-10 bg-gray-100 rounded-lg">
-                    <Bed className="w-5 h-5 text-gray-600" />
+                  <div className={`flex items-center justify-center w-10 h-10 rounded-lg ${
+                    bed.status === 'available' ? 'bg-green-100' :
+                    bed.status === 'occupied' ? 'bg-red-100' :
+                    bed.status === 'cleaning' ? 'bg-yellow-100' :
+                    bed.status === 'maintenance' ? 'bg-blue-100' : 'bg-gray-100'
+                  }`}>
+                    <Bed className={`w-5 h-5 ${
+                      bed.status === 'available' ? 'text-green-600' :
+                      bed.status === 'occupied' ? 'text-red-600' :
+                      bed.status === 'cleaning' ? 'text-yellow-600' :
+                      bed.status === 'maintenance' ? 'text-blue-600' : 'text-gray-600'
+                    }`} />
                   </div>
                 </div>
 
@@ -286,7 +296,7 @@ export default function BedManagement() {
                           </div>
                           <div>
                             <p className="text-sm font-medium text-gray-900">{bed.patient.name}</p>
-                            <p className="text-xs text-gray-500">{bed.patient.medicalRecordNumber}</p>
+                            <p className="text-xs text-gray-500">{bed.patient.medicalRecordNumber} • Admitted: {new Date(bed.patient.admissionDate).toLocaleDateString()}</p>
                           </div>
                         </div>
                       ) : (
