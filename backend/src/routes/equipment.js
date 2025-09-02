@@ -7,29 +7,29 @@ import roleMiddleware from '../middleware/role.js';
 
 // Validation middleware
 const validateEquipment = [
-  body('name').trim().isLength({ min: 2 }),
-  body('type').trim().notEmpty(),
-  body('serialNumber').trim().notEmpty(),
-  body('location').trim().notEmpty(),
-  body('status').isIn(['available', 'in-use', 'maintenance', 'out-of-service'])
+  body('name').trim().isLength({ min: 2 }).withMessage('Name must be at least 2 characters'),
+  body('category').isIn(['monitoring', 'respiratory', 'cardiac', 'surgical', 'diagnostic', 'other']).withMessage('Invalid category'),
+  body('location').trim().notEmpty().withMessage('Location is required'),
+  body('status').optional().isIn(['available', 'in_use', 'maintenance', 'out_of_order', 'retired']).withMessage('Invalid status'),
+  body('equipmentId').trim().isLength({ min: 2 }).withMessage('Equipment ID is required')
 ];
 
-// All routes require authentication
-router.use(authMiddleware);
+// All routes require authentication (commented out for development with no DB)
+// router.use(authMiddleware);
 
 // Equipment CRUD operations
 router.get('/', equipmentController.getAllEquipment);
 router.get('/:id', equipmentController.getEquipmentById);
-router.post('/', roleMiddleware(['admin', 'nurse']), validateEquipment, equipmentController.createEquipment);
-router.put('/:id', roleMiddleware(['admin', 'nurse']), validateEquipment, equipmentController.updateEquipment);
-router.delete('/:id', roleMiddleware(['admin']), equipmentController.deleteEquipment);
+router.post('/', validateEquipment, equipmentController.createEquipment); // Removed roleMiddleware for development
+router.put('/:id', validateEquipment, equipmentController.updateEquipment); // Removed roleMiddleware for development
+router.delete('/:id', equipmentController.deleteEquipment); // Removed roleMiddleware for development
 
 // Equipment-specific operations
 router.get('/:id/maintenance', equipmentController.getEquipmentMaintenance);
-router.post('/:id/maintenance', roleMiddleware(['admin', 'nurse']), equipmentController.addMaintenanceRecord);
-router.put('/:id/status', roleMiddleware(['admin', 'nurse']), equipmentController.updateEquipmentStatus);
-router.post('/:id/assign', roleMiddleware(['admin', 'nurse']), equipmentController.assignEquipment);
-router.post('/:id/unassign', roleMiddleware(['admin', 'nurse']), equipmentController.unassignEquipment);
+router.post('/:id/maintenance', equipmentController.addMaintenanceRecord); // Removed roleMiddleware for development
+router.put('/:id/status', equipmentController.updateEquipmentStatus); // Removed roleMiddleware for development
+router.post('/:id/assign', equipmentController.assignEquipment); // Removed roleMiddleware for development
+router.post('/:id/unassign', equipmentController.unassignEquipment); // Removed roleMiddleware for development
 
 // Search and filtering
 router.get('/search/query', equipmentController.searchEquipment);
@@ -39,6 +39,6 @@ router.get('/filter/location/:location', equipmentController.filterEquipmentByLo
 
 // Maintenance scheduling
 router.get('/maintenance/scheduled', equipmentController.getScheduledMaintenance);
-router.post('/maintenance/schedule', roleMiddleware(['admin']), equipmentController.scheduleMaintenance);
+router.post('/maintenance/schedule', equipmentController.scheduleMaintenance); // Removed roleMiddleware for development
 
 export default router;

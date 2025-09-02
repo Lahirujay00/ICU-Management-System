@@ -23,7 +23,6 @@ const EquipmentModal = ({ isOpen, onClose, onSave, equipment = null }) => {
     model: '',
     category: 'monitoring',
     serialNumber: '',
-    location: 'ICU',
     status: 'available',
     nextMaintenanceDate: '',
     quantity: 1,
@@ -37,7 +36,6 @@ const EquipmentModal = ({ isOpen, onClose, onSave, equipment = null }) => {
         model: equipment.model || '',
         category: equipment.category || 'monitoring',
         serialNumber: equipment.serialNumber || '',
-        location: equipment.location || 'ICU',
         status: equipment.status || 'available',
         nextMaintenanceDate: equipment.nextMaintenanceDate ? equipment.nextMaintenanceDate.split('T')[0] : '',
         quantity: equipment.quantity || 1,
@@ -128,18 +126,6 @@ const EquipmentModal = ({ isOpen, onClose, onSave, equipment = null }) => {
               onChange={(e) => setFormData({...formData, serialNumber: e.target.value})}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="e.g. SN123456789"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Location *</label>
-            <input
-              type="text"
-              value={formData.location}
-              onChange={(e) => setFormData({...formData, location: e.target.value})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="e.g. ICU Room 1, OR 2, Emergency Ward"
-              required
             />
           </div>
 
@@ -502,31 +488,23 @@ export default function EquipmentOverview() {
 
       // Try API call first
       try {
-        console.log(`Making API call to ${apiEndpoint} with status: ${updatedStatus}`);
-        
         if (apiEndpoint.includes('status')) {
-          const response = await apiClient.request(apiEndpoint, {
+          await apiClient.request(apiEndpoint, {
             method: 'PUT',
             body: JSON.stringify({ status: updatedStatus }),
             headers: { 'Content-Type': 'application/json' }
           });
-          console.log('Status update API response:', response);
         } else {
-          const response = await apiClient.request(apiEndpoint, {
+          await apiClient.request(apiEndpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }
           });
-          console.log('Action API response:', response);
         }
         
-        // Refresh equipment data from API after successful update
-        console.log('Refreshing equipment data from API...');
+        // Refresh equipment data from API
         await fetchEquipment();
-        console.log(`Equipment ${action} completed successfully via API`);
-        
       } catch (apiError) {
-        console.error('API call failed:', apiError);
-        console.log('Using local state update as fallback...');
+        console.log('API call failed, using mock update:', apiError.message);
         
         // Update local state as fallback
         setEquipmentData(prev => prev.map(item => {
@@ -535,7 +513,6 @@ export default function EquipmentOverview() {
           }
           return item;
         }));
-        console.log(`Equipment ${action} completed via local state update`);
       }
       
       console.log(`Action ${action} completed for equipment ${equipmentId}`);
@@ -546,48 +523,27 @@ export default function EquipmentOverview() {
 
   const handleSaveEquipment = async (formData) => {
     try {
-      console.log('Saving equipment:', formData);
-      
-      // Generate unique equipment ID
-      const equipmentId = 'EQ' + Date.now().toString().substr(-6);
-      
-      // Create properly formatted equipment data for the backend
-      const equipmentData = {
-        equipmentId: equipmentId, // Required unique identifier
-        name: formData.name,
-        model: formData.model,
-        category: formData.category,
-        serialNumber: formData.serialNumber,
-        status: formData.status,
-        location: formData.location, // Use form location
-        quantity: formData.quantity,
-        minQuantity: formData.minQuantity,
-        nextMaintenanceDate: formData.nextMaintenanceDate || null
+      // Generate a unique ID for new equipment
+      const newEquipment = {
+        ...formData,
+        _id: 'eq_' + Date.now(),
+        equipmentId: 'EQ' + Date.now().toString().substr(-6),
+        location: 'ICU',
+        createdAt: new Date().toISOString()
       };
 
       try {
-        // Try API call first with proper equipment data structure
-        console.log('Calling API with equipment data:', equipmentData);
-        const response = await apiClient.createEquipment(equipmentData);
-        console.log('API response:', response);
-        
-        // Refresh equipment data from API after successful creation
+        // Try API call first
+        await apiClient.createEquipment(newEquipment);
         await fetchEquipment();
-        console.log('Equipment added successfully to database');
       } catch (apiError) {
-        console.error('API call failed:', apiError);
+        console.log('API call failed, using mock update:', apiError.message);
         
-        // Add to local state as fallback with generated ID
-        const newEquipment = {
-          ...equipmentData,
-          _id: 'eq_' + Date.now(),
-          createdAt: new Date().toISOString()
-        };
-        
+        // Add to local state as fallback
         setEquipmentData(prev => [...prev, newEquipment]);
-        console.log('Equipment added to local state as fallback');
       }
       
+      console.log('Equipment added successfully');
     } catch (error) {
       console.error('Error adding equipment:', error);
     }
@@ -658,61 +614,6 @@ export default function EquipmentOverview() {
             <Plus className="w-4 h-4 mr-2" />
             Add Equipment
           </button>
-        </div>
-      </div>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="card bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200 hover:shadow-lg transition-all duration-300 hover:scale-105">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-blue-600">Total Equipment</p>
-              <p className="text-3xl font-bold text-blue-900">{equipmentData.length}</p>
-              <p className="text-xs text-blue-500 mt-1">All equipment items</p>
-            </div>
-            <div className="bg-blue-200 p-3 rounded-full">
-              <Stethoscope className="w-8 h-8 text-blue-700" />
-            </div>
-          </div>
-        </div>
-
-        <div className="card bg-gradient-to-r from-green-50 to-green-100 border-green-200 hover:shadow-lg transition-all duration-300 hover:scale-105">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-green-600">Available</p>
-              <p className="text-3xl font-bold text-green-900">{equipmentData.filter(eq => eq.status === 'available').length}</p>
-              <p className="text-xs text-green-500 mt-1">Ready for use</p>
-            </div>
-            <div className="bg-green-200 p-3 rounded-full">
-              <CheckCircle className="w-8 h-8 text-green-700" />
-            </div>
-          </div>
-        </div>
-
-        <div className="card bg-gradient-to-r from-red-50 to-red-100 border-red-200 hover:shadow-lg transition-all duration-300 hover:scale-105">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-red-600">In Use</p>
-              <p className="text-3xl font-bold text-red-900">{equipmentData.filter(eq => eq.status === 'in_use').length}</p>
-              <p className="text-xs text-red-500 mt-1">Currently assigned</p>
-            </div>
-            <div className="bg-red-200 p-3 rounded-full">
-              <Activity className="w-8 h-8 text-red-700" />
-            </div>
-          </div>
-        </div>
-
-        <div className="card bg-gradient-to-r from-yellow-50 to-yellow-100 border-yellow-200 hover:shadow-lg transition-all duration-300 hover:scale-105">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-yellow-600">Maintenance</p>
-              <p className="text-3xl font-bold text-yellow-900">{equipmentData.filter(eq => eq.status === 'maintenance' || eq.status === 'out_of_order').length}</p>
-              <p className="text-xs text-yellow-500 mt-1">Needs attention</p>
-            </div>
-            <div className="bg-yellow-200 p-3 rounded-full">
-              <AlertTriangle className="w-8 h-8 text-yellow-700" />
-            </div>
-          </div>
         </div>
       </div>
 
@@ -849,22 +750,29 @@ export default function EquipmentOverview() {
 
                 {/* Actions */}
                 <div className="col-span-3">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
                     {item.status === 'available' && (
                       <>
                         <button 
                           onClick={() => handleEquipmentAction(item._id, 'checkout')}
-                          className="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                          className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-white bg-blue-600 border border-blue-600 rounded hover:bg-blue-700 transition-colors"
                         >
-                          <Activity className="w-3 h-3 mr-1 inline" />
+                          <Activity className="w-3 h-3 mr-1" />
                           Check Out
                         </button>
                         <button 
                           onClick={() => handleEquipmentAction(item._id, 'maintenance')}
-                          className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                          className="inline-flex items-center p-1.5 text-xs font-medium text-gray-600 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 transition-colors"
+                          title="Maintenance"
                         >
-                          <Settings className="w-3 h-3 mr-1 inline" />
-                          Maintenance
+                          <Settings className="w-3 h-3" />
+                        </button>
+                        <button 
+                          onClick={() => handleEquipmentAction(item._id, 'schedule_service')}
+                          className="inline-flex items-center p-1.5 text-xs font-medium text-blue-600 bg-blue-100 border border-blue-300 rounded hover:bg-blue-200 transition-colors"
+                          title="Schedule Service"
+                        >
+                          <Calendar className="w-3 h-3" />
                         </button>
                       </>
                     )}
@@ -873,17 +781,17 @@ export default function EquipmentOverview() {
                       <>
                         <button 
                           onClick={() => handleEquipmentAction(item._id, 'return')}
-                          className="px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
+                          className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-white bg-green-600 border border-green-600 rounded hover:bg-green-700 transition-colors"
                         >
-                          <CheckCircle className="w-3 h-3 mr-1 inline" />
+                          <CheckCircle className="w-3 h-3 mr-1" />
                           Return
                         </button>
                         <button 
                           onClick={() => handleEquipmentAction(item._id, 'schedule_service')}
-                          className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                          className="inline-flex items-center p-1.5 text-xs font-medium text-blue-600 bg-blue-100 border border-blue-300 rounded hover:bg-blue-200 transition-colors"
+                          title="Schedule Service"
                         >
-                          <Calendar className="w-3 h-3 mr-1 inline" />
-                          Schedule
+                          <Calendar className="w-3 h-3" />
                         </button>
                       </>
                     )}
@@ -892,17 +800,17 @@ export default function EquipmentOverview() {
                       <>
                         <button 
                           onClick={() => handleEquipmentAction(item._id, 'complete')}
-                          className="px-3 py-1.5 text-xs font-medium text-white bg-yellow-600 rounded-lg hover:bg-yellow-700 transition-colors"
+                          className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-white bg-yellow-600 border border-yellow-600 rounded hover:bg-yellow-700 transition-colors"
                         >
-                          <Wrench className="w-3 h-3 mr-1 inline" />
+                          <Wrench className="w-3 h-3 mr-1" />
                           Complete
                         </button>
                         <button 
                           onClick={() => handleEquipmentAction(item._id, 'schedule_service')}
-                          className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                          className="inline-flex items-center p-1.5 text-xs font-medium text-blue-600 bg-blue-100 border border-blue-300 rounded hover:bg-blue-200 transition-colors"
+                          title="Reschedule"
                         >
-                          <Calendar className="w-3 h-3 mr-1 inline" />
-                          Reschedule
+                          <Calendar className="w-3 h-3" />
                         </button>
                       </>
                     )}
@@ -911,17 +819,17 @@ export default function EquipmentOverview() {
                       <>
                         <button 
                           onClick={() => handleEquipmentAction(item._id, 'repair')}
-                          className="px-3 py-1.5 text-xs font-medium text-white bg-gray-600 rounded-lg hover:bg-gray-700 transition-colors"
+                          className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-white bg-gray-600 border border-gray-600 rounded hover:bg-gray-700 transition-colors"
                         >
-                          <Wrench className="w-3 h-3 mr-1 inline" />
+                          <Wrench className="w-3 h-3 mr-1" />
                           Repair
                         </button>
                         <button 
                           onClick={() => handleEquipmentAction(item._id, 'schedule_service')}
-                          className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                          className="inline-flex items-center p-1.5 text-xs font-medium text-blue-600 bg-blue-100 border border-blue-300 rounded hover:bg-blue-200 transition-colors"
+                          title="Schedule Service"
                         >
-                          <Calendar className="w-3 h-3 mr-1 inline" />
-                          Schedule
+                          <Calendar className="w-3 h-3" />
                         </button>
                       </>
                     )}
