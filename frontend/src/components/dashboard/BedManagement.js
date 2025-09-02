@@ -272,7 +272,7 @@ export default function BedManagement() {
                 {/* Bed Info */}
                 <div className="flex-1 min-w-0 ml-4">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-12">
                       <div>
                         <h4 className="text-lg font-medium text-gray-900">{bed.number}</h4>
                         <p className="text-sm text-gray-500">ICU Unit</p>
