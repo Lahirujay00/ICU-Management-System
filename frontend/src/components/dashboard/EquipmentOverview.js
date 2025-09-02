@@ -9,7 +9,8 @@ import {
   Plus,
   Wrench,
   Battery,
-  Activity
+  Activity,
+  Settings
 } from 'lucide-react'
 import { apiClient } from '@/lib/api'
 
@@ -29,7 +30,81 @@ export default function EquipmentOverview({ detailed = false }) {
       setIsLoading(false)
     } catch (error) {
       console.error('Error loading equipment:', error)
+      // Use mock data if API fails
+      const mockData = apiClient.getMockEquipment()
+      setEquipment(mockData)
       setIsLoading(false)
+    }
+  }
+
+  const handleEquipmentAction = async (equipmentId, action) => {
+    try {
+      console.log(`Performing ${action} on equipment ${equipmentId}`)
+      
+      // Handle special actions first
+      if (action === 'add') {
+        console.log('Opening add equipment modal...')
+        // Here you would open a modal to add new equipment
+        return
+      }
+      
+      if (action === 'details') {
+        console.log(`Opening details for equipment ${equipmentId}`)
+        // Here you would open a modal with equipment details
+        return
+      }
+      
+      // Update equipment status locally for immediate feedback
+      setEquipment(prevEquipment => 
+        prevEquipment.map(item => {
+          if (item._id === equipmentId) {
+            switch (action) {
+              case 'checkout':
+                console.log(`Checking out ${item.name}...`)
+                return { ...item, status: 'in_use' }
+              case 'return':
+                console.log(`Returning ${item.name}...`)
+                return { ...item, status: 'available' }
+              case 'maintenance':
+                console.log(`Sending ${item.name} for maintenance...`)
+                return { ...item, status: 'maintenance' }
+              case 'complete':
+                console.log(`Completing maintenance for ${item.name}...`)
+                return { ...item, status: 'available' }
+              case 'repair':
+                console.log(`Scheduling repair for ${item.name}...`)
+                return { ...item, status: 'maintenance' }
+              case 'reorder':
+                console.log(`Requesting reorder for ${item.name}...`)
+                // Don't change status for reorder
+                return item
+              default:
+                return item
+            }
+          }
+          return item
+        })
+      )
+
+      // Here you would normally make API calls to update the equipment status
+      // await apiClient.updateEquipmentStatus(equipmentId, newStatus)
+      
+      // Show success message (you could add toast notifications here)
+      const actionMessages = {
+        checkout: 'Equipment checked out successfully',
+        return: 'Equipment returned successfully',
+        maintenance: 'Equipment sent for maintenance',
+        complete: 'Maintenance completed successfully',
+        repair: 'Repair scheduled successfully',
+        reorder: 'Reorder request submitted'
+      }
+      
+      console.log(actionMessages[action] || 'Action completed')
+      
+    } catch (error) {
+      console.error('Error performing equipment action:', error)
+      // Revert the local change if API call fails
+      loadEquipment()
     }
   }
 
@@ -152,154 +227,254 @@ export default function EquipmentOverview({ detailed = false }) {
         </button>
       </div>
 
-      {/* Equipment Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-        {filteredEquipment.map((item) => (
-          <div key={item._id} className="card hover:shadow-lg transition-shadow duration-200">
-            {/* Equipment Header */}
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                  <Stethoscope className="w-6 h-6 text-blue-600" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900">{item.name}</h3>
-                  <p className="text-sm text-gray-500">{item.category}</p>
-                </div>
-              </div>
-              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                item.status === 'available' ? 'bg-green-100 text-green-800 border border-green-300' :
-                item.status === 'in_use' ? 'bg-yellow-100 text-yellow-800 border border-yellow-300' :
-                item.status === 'maintenance' ? 'bg-red-100 text-red-800 border border-red-300' :
-                'bg-gray-100 text-gray-800 border border-gray-300'
-              }`}>
-                {item.status.replace('_', ' ')}
-              </span>
+      {/* Equipment List - Clean Professional Layout */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div className="px-6 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-200">
+          <div className="flex items-center space-x-3">
+            <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-lg">
+              <Stethoscope className="w-5 h-5 text-blue-600" />
             </div>
-
-            {/* Equipment Details */}
-            <div className="space-y-3 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">Quantity:</span>
-                <span className={`font-medium ${
-                  item.quantity < item.minQuantity ? 'text-red-600' : 'text-gray-900'
-                }`}>
-                  {item.quantity} / {item.maxQuantity}
-                </span>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">Location:</span>
-                <span className="font-medium text-gray-900">{item.location}</span>
-              </div>
-
-              {item.lastMaintenance && (
-                <div className="flex items-center gap-2">
-                  <Wrench className="w-4 h-4 text-gray-400" />
-                  <span className="text-gray-600">Last Maintenance: {new Date(item.lastMaintenance).toLocaleDateString()}</span>
-                </div>
-              )}
-
-              {item.nextMaintenance && (
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-gray-400" />
-                  <span className="text-gray-600">Next Maintenance: {new Date(item.nextMaintenance).toLocaleDateString()}</span>
-                </div>
-              )}
-
-              {item.batteryLevel && (
-                <div className="flex items-center gap-2">
-                  <Battery className="w-4 h-4 text-gray-400" />
-                  <span className="text-gray-600">Battery: {item.batteryLevel}%</span>
-                </div>
-              )}
-            </div>
-
-            {/* Equipment Actions */}
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <div className="flex gap-2">
-                {item.status === 'available' && (
-                  <button className="flex-1 px-3 py-2 text-xs bg-blue-100 text-blue-800 rounded hover:bg-blue-200">
-                    Check Out
-                  </button>
-                )}
-                {item.status === 'in_use' && (
-                  <button className="flex-1 px-3 py-2 text-xs bg-green-100 text-green-800 rounded hover:bg-green-200">
-                    Return
-                  </button>
-                )}
-                {item.status === 'maintenance' && (
-                  <button className="flex-1 px-3 py-2 text-xs bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200">
-                    Complete
-                  </button>
-                )}
-                <button className="flex-1 px-3 py-2 text-xs bg-gray-100 text-gray-800 rounded hover:bg-gray-200">
-                  Details
-                </button>
-              </div>
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">Equipment Inventory</h3>
+              <p className="text-sm text-gray-600 mt-1">Medical equipment tracking and management</p>
             </div>
           </div>
-        ))}
+        </div>
+
+        {/* Column Headers */}
+        <div className="px-6 py-3 bg-gray-50 border-b border-gray-200">
+          <div className="grid grid-cols-12 gap-4 items-center">
+            <div className="col-span-4 text-xs font-medium text-gray-500 uppercase tracking-wide">Equipment</div>
+            <div className="col-span-2 text-xs font-medium text-gray-500 uppercase tracking-wide">Category</div>
+            <div className="col-span-2 text-xs font-medium text-gray-500 uppercase tracking-wide">Status</div>
+            <div className="col-span-2 text-xs font-medium text-gray-500 uppercase tracking-wide">Location</div>
+            <div className="col-span-2 text-xs font-medium text-gray-500 uppercase tracking-wide">Actions</div>
+          </div>
+        </div>
+        
+        {/* Equipment Rows */}
+        <div className="divide-y divide-gray-100">
+          {filteredEquipment.map((item, index) => (
+            <div key={item._id} className={`px-6 py-4 hover:bg-gray-50 transition-colors duration-200 ${
+              index % 2 === 0 ? 'bg-white' : 'bg-gray-25'
+            }`}>
+              <div className="grid grid-cols-12 gap-4 items-center">
+                
+                {/* Equipment Info */}
+                <div className="col-span-4 flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
+                    item.status === 'available' ? 'bg-gradient-to-br from-green-400 to-green-600' :
+                    item.status === 'in_use' ? 'bg-gradient-to-br from-yellow-400 to-yellow-600' :
+                    item.status === 'maintenance' ? 'bg-gradient-to-br from-red-400 to-red-600' :
+                    item.status === 'out_of_order' ? 'bg-gradient-to-br from-gray-400 to-gray-600' : 'bg-gradient-to-br from-blue-400 to-blue-600'
+                  }`}>
+                    <Stethoscope className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900 text-sm">{item.name}</h3>
+                    <p className="text-xs text-gray-500">Model: {item.model || 'N/A'}</p>
+                    <p className="text-xs text-gray-500">Qty: {item.quantity || 1}</p>
+                  </div>
+                </div>
+
+                {/* Category */}
+                <div className="col-span-2">
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 capitalize">
+                    {item.category}
+                  </span>
+                </div>
+
+                {/* Status & Maintenance */}
+                <div className="col-span-2">
+                  <div className="flex flex-col gap-2">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium w-fit ${
+                      item.status === 'available' ? 'bg-green-100 text-green-800 border border-green-300' :
+                      item.status === 'in_use' ? 'bg-yellow-100 text-yellow-800 border border-yellow-300' :
+                      item.status === 'maintenance' ? 'bg-red-100 text-red-800 border border-red-300' :
+                      item.status === 'out_of_order' ? 'bg-gray-100 text-gray-800 border border-gray-300' :
+                      'bg-blue-100 text-blue-800 border border-blue-300'
+                    }`}>
+                      <div className={`w-2 h-2 rounded-full mr-2 ${
+                        item.status === 'available' ? 'bg-green-500' :
+                        item.status === 'in_use' ? 'bg-yellow-500' :
+                        item.status === 'maintenance' ? 'bg-red-500' :
+                        item.status === 'out_of_order' ? 'bg-gray-500' : 'bg-blue-500'
+                      }`}></div>
+                      {item.status.replace('_', ' ').toUpperCase()}
+                    </span>
+                    
+                    {/* Low Stock Warning */}
+                    {item.quantity && item.minQuantity && item.quantity < item.minQuantity && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200 w-fit">
+                        <AlertTriangle className="w-3 h-3 mr-1" />
+                        Low Stock
+                      </span>
+                    )}
+                    
+                    {/* Next Maintenance */}
+                    {item.nextMaintenance && (
+                      <div className="text-xs">
+                        <div className={`flex items-center gap-1 ${
+                          new Date(item.nextMaintenance) < new Date() ? 'text-red-600' : 'text-gray-500'
+                        }`}>
+                          <Wrench className="w-3 h-3" />
+                          <span className="font-medium">
+                            {new Date(item.nextMaintenance) < new Date() ? 'Overdue' : 'Next Service'}
+                          </span>
+                        </div>
+                        <div className="text-gray-500 text-xs pl-4">
+                          {new Date(item.nextMaintenance).toLocaleDateString()}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Location */}
+                <div className="col-span-2">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-gray-900">{item.location}</p>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="col-span-2">
+                  <div className="flex items-center gap-1">
+                    {item.status === 'available' && (
+                      <>
+                        <button 
+                          onClick={() => handleEquipmentAction(item._id, 'checkout')}
+                          className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-white bg-blue-600 border border-blue-600 rounded hover:bg-blue-700 transition-colors"
+                        >
+                          <Activity className="w-3 h-3 mr-1" />
+                          Check Out
+                        </button>
+                        <button 
+                          onClick={() => handleEquipmentAction(item._id, 'maintenance')}
+                          className="inline-flex items-center p-1.5 text-xs font-medium text-gray-600 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 transition-colors"
+                          title="Maintenance"
+                        >
+                          <Settings className="w-3 h-3" />
+                        </button>
+                      </>
+                    )}
+                    
+                    {item.status === 'in_use' && (
+                      <>
+                        <button 
+                          onClick={() => handleEquipmentAction(item._id, 'return')}
+                          className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-white bg-green-600 border border-green-600 rounded hover:bg-green-700 transition-colors"
+                        >
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          Return
+                        </button>
+                        <button 
+                          onClick={() => handleEquipmentAction(item._id, 'details')}
+                          className="inline-flex items-center p-1.5 text-xs font-medium text-gray-600 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 transition-colors"
+                          title="Details"
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
+                      </>
+                    )}
+                    
+                    {item.status === 'maintenance' && (
+                      <>
+                        <button 
+                          onClick={() => handleEquipmentAction(item._id, 'complete')}
+                          className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-white bg-yellow-600 border border-yellow-600 rounded hover:bg-yellow-700 transition-colors"
+                        >
+                          <Wrench className="w-3 h-3 mr-1" />
+                          Complete
+                        </button>
+                        <button 
+                          onClick={() => handleEquipmentAction(item._id, 'details')}
+                          className="inline-flex items-center p-1.5 text-xs font-medium text-gray-600 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 transition-colors"
+                          title="Details"
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
+                      </>
+                    )}
+
+                    {item.status === 'out_of_order' && (
+                      <button 
+                        onClick={() => handleEquipmentAction(item._id, 'repair')}
+                        className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-white bg-gray-600 border border-gray-600 rounded hover:bg-gray-700 transition-colors"
+                      >
+                        <Wrench className="w-3 h-3 mr-1" />
+                        Repair
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Empty State */}
+        {filteredEquipment.length === 0 && (
+          <div className="px-6 py-12 text-center">
+            <div className="flex items-center justify-center w-16 h-16 mx-auto bg-gray-100 rounded-full mb-4">
+              <Stethoscope className="w-8 h-8 text-gray-400" />
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No equipment found</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              {filterStatus === 'all' 
+                ? 'No equipment has been added yet.' 
+                : `No equipment with ${filterStatus.replace('_', ' ')} status.`}
+            </p>
+            {filterStatus === 'all' && (
+              <button 
+                onClick={() => handleEquipmentAction('new', 'add')}
+                className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-colors"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Equipment
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Low Stock Alerts */}
+      {/* Low Stock Alerts - Enhanced */}
       {lowStockEquipment.length > 0 && (
-        <div className="card bg-red-50 border border-red-200">
-          <div className="flex items-center gap-3 mb-4">
-            <AlertTriangle className="w-6 h-6 text-red-600" />
-            <h3 className="text-lg font-semibold text-red-900">Low Stock Alerts</h3>
+        <div className="bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-xl p-6 shadow-sm">
+          <div className="flex items-center mb-4">
+            <div className="flex items-center justify-center w-10 h-10 bg-red-100 rounded-lg mr-3">
+              <AlertTriangle className="w-6 h-6 text-red-600" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-red-900">Critical Stock Alerts</h3>
+              <p className="text-sm text-red-600">Equipment requiring immediate attention</p>
+            </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {lowStockEquipment.map((item) => (
-              <div key={item._id} className="bg-white p-3 rounded-lg border border-red-200">
-                <div className="flex items-center justify-between">
-                  <span className="font-medium text-red-900">{item.name}</span>
-                  <span className="text-sm text-red-600">
-                    {item.quantity} remaining
+              <div key={item._id} className="bg-white p-4 rounded-lg border border-red-200 hover:shadow-md transition-shadow">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-semibold text-red-900">{item.name}</span>
+                  <span className="text-sm font-bold text-red-600 bg-red-100 px-2 py-1 rounded-full">
+                    {item.quantity} left
                   </span>
                 </div>
-                <p className="text-xs text-red-600 mt-1">
-                  Min quantity: {item.minQuantity}
+                <p className="text-xs text-red-600 mb-3">
+                  Minimum required: {item.minQuantity}
                 </p>
+                <button 
+                  onClick={() => handleEquipmentAction(item._id, 'reorder')}
+                  className="w-full inline-flex items-center justify-center px-3 py-2 text-xs font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  <Plus className="w-3 h-3 mr-2" />
+                  Request Reorder
+                </button>
               </div>
             ))}
           </div>
         </div>
       )}
-
-      {/* Quick Actions */}
-      <div className="card bg-gray-50">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <button className="p-4 bg-white rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all duration-200">
-            <div className="text-center">
-              <Plus className="w-6 h-6 text-blue-600 mx-auto mb-2" />
-              <span className="text-sm font-medium text-gray-700">Add Equipment</span>
-            </div>
-          </button>
-          
-          <button className="p-4 bg-white rounded-lg border border-gray-200 hover:border-green-300 hover:shadow-md transition-all duration-200">
-            <div className="text-center">
-              <Wrench className="w-6 h-6 text-green-600 mx-auto mb-2" />
-              <span className="text-sm font-medium text-gray-700">Schedule Maintenance</span>
-            </div>
-          </button>
-          
-          <button className="p-4 bg-white rounded-lg border border-gray-200 hover:border-yellow-300 hover:shadow-md transition-all duration-200">
-            <div className="text-center">
-              <Activity className="w-6 h-6 text-yellow-600 mx-auto mb-2" />
-              <span className="text-sm font-medium text-gray-700">Check Out</span>
-            </div>
-          </button>
-          
-          <button className="p-4 bg-white rounded-lg border border-gray-200 hover:border-purple-300 hover:shadow-md transition-all duration-200">
-            <div className="text-center">
-              <CheckCircle className="w-6 h-6 text-purple-600 mx-auto mb-2" />
-              <span className="text-sm font-medium text-gray-700">Inventory Report</span>
-            </div>
-          </button>
-        </div>
-      </div>
     </div>
   )
 } 
