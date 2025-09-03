@@ -42,17 +42,32 @@ export default function LoginForm() {
   const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true)
     try {
+      console.log('🚀 Starting Google sign-in...')
+      
       const result = await signIn('google', {
         callbackUrl: '/',
-        redirect: true
+        redirect: false // Change to false to handle errors
       })
       
+      console.log('📋 Google sign-in result:', result)
+      
       if (result?.error) {
-        toast.error('Google sign-in failed. Please try again.')
+        console.error('❌ Google sign-in error:', result.error)
+        if (result.error === 'AccessDenied') {
+          toast.error('Access denied. Your email is not authorized for admin access.')
+        } else {
+          toast.error('Google sign-in failed: ' + result.error)
+        }
+      } else if (result?.url) {
+        console.log('✅ Google sign-in successful, redirecting...')
+        toast.success('Google sign-in successful!')
+        window.location.href = result.url
+      } else {
+        console.log('🔄 Google sign-in in progress...')
       }
     } catch (error) {
-      console.error('Google sign-in error:', error)
-      toast.error('An error occurred during Google sign-in.')
+      console.error('💥 Google sign-in exception:', error)
+      toast.error('An error occurred during Google sign-in: ' + error.message)
     } finally {
       setIsGoogleLoading(false)
     }
