@@ -55,7 +55,8 @@ const EquipmentModal = ({ isOpen, onClose, onSave, equipment = null }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"
+    style={{ width: '100vw', height: '100vh', margin: 0, padding: 0 }}>
       <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-semibold">{equipment ? 'Edit Equipment' : 'Add New Equipment'}</h3>
@@ -131,17 +132,7 @@ const EquipmentModal = ({ isOpen, onClose, onSave, equipment = null }) => {
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Location *</label>
-            <input
-              type="text"
-              value={formData.location}
-              onChange={(e) => setFormData({...formData, location: e.target.value})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="e.g. ICU Room 1, OR 2, Emergency Ward"
-              required
-            />
-          </div>
+          
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Next Maintenance Date</label>

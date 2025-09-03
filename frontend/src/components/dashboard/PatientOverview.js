@@ -569,7 +569,10 @@ export default function PatientOverview({ detailed = false }) {
     if (!show) return null;
   
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 h-ful">
+      <div
+        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+        style={{ width: '100vw', height: '100vh', margin: 0, padding: 0 }}
+      >
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -1384,4 +1387,4 @@ export default function PatientOverview({ detailed = false }) {
       />
     </div>
   )
-} 
+}
