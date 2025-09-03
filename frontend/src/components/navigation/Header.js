@@ -6,26 +6,56 @@ import {
   User, 
   Settings, 
   HelpCircle,
-  Sun,
-  Moon,
   Bell
 } from 'lucide-react'
-import { useSession } from 'next-auth/react'
+import { useSession, signOut } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
 
 export default function Header({ user }) {
+  const router = useRouter()
   const [isProfileOpen, setIsProfileOpen] = useState(false)
-  const [isDarkMode, setIsDarkMode] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
   const handleSearch = (e) => {
     e.preventDefault()
-    // Implement search functionality
-    console.log('Searching for:', searchQuery)
+    if (searchQuery.trim()) {
+      // Navigate to patients page with search query
+      router.push(`/patients?search=${encodeURIComponent(searchQuery.trim())}`)
+    }
   }
 
-  const toggleDarkMode = () => {
-    setIsDarkMode(!isDarkMode)
-    // Implement dark mode toggle
+  const handleNotifications = () => {
+    // Could navigate to notifications page or open modal
+    console.log('Opening notifications...')
+    // For now, just show an alert
+    alert('Notifications feature - coming soon!')
+  }
+
+  const handleHelp = () => {
+    // Could open help documentation or support chat
+    console.log('Opening help...')
+    alert('Help & Support - coming soon!')
+  }
+
+  const handleSettings = () => {
+    // Navigate to settings tab in dashboard
+    window.location.href = '/?tab=settings'
+  }
+
+  const handleProfile = () => {
+    // Could navigate to profile page
+    console.log('Opening profile...')
+    alert('Profile settings - coming soon!')
+  }
+
+  const handleSignOut = async () => {
+    try {
+      await signOut({ callbackUrl: '/auth/signin' })
+    } catch (error) {
+      console.error('Sign out error:', error)
+      // Fallback: redirect manually
+      window.location.href = '/auth/signin'
+    }
   }
 
   return (
@@ -47,27 +77,20 @@ export default function Header({ user }) {
 
         {/* Right side - Actions and Profile */}
         <div className="flex items-center gap-4">
-          {/* Dark Mode Toggle */}
-          <button
-            onClick={toggleDarkMode}
-            className="p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200"
-            title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-          >
-            {isDarkMode ? (
-              <Sun className="w-5 h-5 text-gray-600" />
-            ) : (
-              <Moon className="w-5 h-5 text-gray-600" />
-            )}
-          </button>
-
           {/* Notifications */}
-          <button className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200">
+          <button 
+            onClick={handleNotifications}
+            className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200"
+          >
             <Bell className="w-5 h-5 text-gray-600" />
             <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
           </button>
 
           {/* Help */}
-          <button className="p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200">
+          <button 
+            onClick={handleHelp}
+            className="p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200"
+          >
             <HelpCircle className="w-5 h-5 text-gray-600" />
           </button>
 
@@ -102,18 +125,27 @@ export default function Header({ user }) {
                   </p>
                 </div>
                 
-                <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2">
+                <button 
+                  onClick={handleProfile}
+                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                >
                   <User className="w-4 h-4" />
                   View Profile
                 </button>
                 
-                <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2">
+                <button 
+                  onClick={handleSettings}
+                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                >
                   <Settings className="w-4 h-4" />
                   Settings
                 </button>
                 
                 <div className="border-t border-gray-200 mt-2 pt-2">
-                  <button className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50">
+                  <button 
+                    onClick={handleSignOut}
+                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                  >
                     Sign Out
                   </button>
                 </div>

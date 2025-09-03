@@ -91,6 +91,12 @@ export const getAnalytics = async (req, res) => {
         stabilized: patients.filter(p => p.status === 'stable').length,
         complications: patients.filter(p => p.condition && p.condition.includes('complication')).length
       },
+      staffData: {
+        totalStaff: totalStaffMembers,
+        onDutyStaff: activeStaff,
+        offDutyStaff: totalStaffMembers - activeStaff,
+        staffUtilization: parseInt(staffUtilization)
+      },
       deathRateAnalysis: {
         currentMonth: parseFloat(mortalityRate),
         lastMonth: Math.max(0, parseFloat(mortalityRate) + (Math.random() * 2 - 1)).toFixed(2), // Simulated last month
