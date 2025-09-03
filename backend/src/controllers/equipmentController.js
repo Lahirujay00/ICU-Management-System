@@ -100,19 +100,82 @@ export const addMaintenanceRecord = async (req, res) => {
   res.status(200).json({ message: `Maintenance record added for equipment ${req.params.id}` });
 };
 
-// Update equipment status (placeholder)
+// Update equipment status
 export const updateEquipmentStatus = async (req, res) => {
-  res.status(200).json({ message: `Status updated for equipment ${req.params.id}` });
+  try {
+    console.log(`🔧 BACKEND: Updating equipment ${req.params.id} status to: ${req.body.status}`);
+    
+    const equipment = await Equipment.findByIdAndUpdate(
+      req.params.id, 
+      { status: req.body.status },
+      { new: true }
+    );
+    
+    if (!equipment) {
+      return sendError(res, 404, 'Equipment not found');
+    }
+    
+    console.log(`✅ Equipment status updated successfully: ${equipment.name} -> ${equipment.status}`);
+    res.status(200).json({ 
+      message: `Status updated for equipment ${req.params.id}`,
+      equipment: equipment 
+    });
+  } catch (err) {
+    console.error('❌ Error updating equipment status:', err.message);
+    sendError(res, 500, 'Server error while updating equipment status');
+  }
 };
 
-// Assign equipment (placeholder)
+// Assign equipment
 export const assignEquipment = async (req, res) => {
-  res.status(200).json({ message: `Equipment ${req.params.id} assigned` });
+  try {
+    console.log(`🔧 BACKEND: Assigning equipment ${req.params.id} (setting to in_use)`);
+    
+    const equipment = await Equipment.findByIdAndUpdate(
+      req.params.id, 
+      { status: 'in_use' },
+      { new: true }
+    );
+    
+    if (!equipment) {
+      return sendError(res, 404, 'Equipment not found');
+    }
+    
+    console.log(`✅ Equipment assigned successfully: ${equipment.name} -> ${equipment.status}`);
+    res.status(200).json({ 
+      message: `Equipment ${req.params.id} assigned`,
+      equipment: equipment 
+    });
+  } catch (err) {
+    console.error('❌ Error assigning equipment:', err.message);
+    sendError(res, 500, 'Server error while assigning equipment');
+  }
 };
 
-// Unassign equipment (placeholder)
+// Unassign equipment
 export const unassignEquipment = async (req, res) => {
-  res.status(200).json({ message: `Equipment ${req.params.id} unassigned` });
+  try {
+    console.log(`🔧 BACKEND: Unassigning equipment ${req.params.id} (setting to available)`);
+    
+    const equipment = await Equipment.findByIdAndUpdate(
+      req.params.id, 
+      { status: 'available' },
+      { new: true }
+    );
+    
+    if (!equipment) {
+      return sendError(res, 404, 'Equipment not found');
+    }
+    
+    console.log(`✅ Equipment unassigned successfully: ${equipment.name} -> ${equipment.status}`);
+    res.status(200).json({ 
+      message: `Equipment ${req.params.id} unassigned`,
+      equipment: equipment 
+    });
+  } catch (err) {
+    console.error('❌ Error unassigning equipment:', err.message);
+    sendError(res, 500, 'Server error while unassigning equipment');
+  }
 };
 
 // Search equipment (placeholder)

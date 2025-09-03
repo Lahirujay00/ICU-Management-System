@@ -212,6 +212,25 @@ class ApiClient {
     })
   }
 
+  async updateEquipmentStatus(id, status) {
+    return this.request(`/equipment/${id}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    })
+  }
+
+  async assignEquipment(id) {
+    return this.request(`/equipment/${id}/assign`, {
+      method: 'POST',
+    })
+  }
+
+  async unassignEquipment(id) {
+    return this.request(`/equipment/${id}/unassign`, {
+      method: 'POST',
+    })
+  }
+
   // Bed endpoints
   async getBeds() {
     return this.request('/beds')

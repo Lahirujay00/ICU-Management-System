@@ -407,6 +407,7 @@ export default function EquipmentOverview() {
   const [equipmentData, setEquipmentData] = useState([]);
   const [filteredEquipment, setFilteredEquipment] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -459,31 +460,28 @@ export default function EquipmentOverview() {
     try {
       console.log(`Executing ${action} for equipment ${equipmentId}`);
       
+      const equipmentName = equipmentData.find(item => item._id === equipmentId)?.name || 'Equipment';
+      
       let updatedStatus;
-      let apiEndpoint;
       
       switch (action) {
         case 'checkout':
           updatedStatus = 'in_use';
-          apiEndpoint = `/equipment/${equipmentId}/assign`;
           break;
         case 'return':
           updatedStatus = 'available';
-          apiEndpoint = `/equipment/${equipmentId}/unassign`;
           break;
         case 'maintenance':
           updatedStatus = 'maintenance';
-          apiEndpoint = `/equipment/${equipmentId}/status`;
           break;
         case 'complete':
           updatedStatus = 'available';
-          apiEndpoint = `/equipment/${equipmentId}/status`;
           break;
         case 'repair':
           updatedStatus = 'maintenance';
-          apiEndpoint = `/equipment/${equipmentId}/status`;
           break;
         case 'schedule_service':
+        case 'schedule':
           const equipment = equipmentData.find(item => item._id === equipmentId);
           setSelectedEquipment(equipment);
           setShowServiceModal(true);
@@ -494,51 +492,43 @@ export default function EquipmentOverview() {
         case 'details':
           const detailEquipment = equipmentData.find(item => item._id === equipmentId);
           console.log('Equipment details:', detailEquipment);
-          // TODO: Show details modal
           return;
         default:
           return;
       }
 
-      // Try API call first
+      console.log(`Updating equipment ${equipmentId} status to: ${updatedStatus}`);
+
+      // Update local state immediately for instant UI feedback
+      setEquipmentData(prevData => {
+        const newData = prevData.map(item => 
+          item._id === equipmentId 
+            ? { ...item, status: updatedStatus }
+            : item
+        );
+        console.log('Updated equipment data locally:', newData.find(item => item._id === equipmentId));
+        return newData;
+      });
+
+      // Make API call to persist to database
       try {
-        console.log(`Making API call to ${apiEndpoint} with status: ${updatedStatus}`);
+        console.log('Making API call to update database...');
         
-        if (apiEndpoint.includes('status')) {
-          const response = await apiClient.request(apiEndpoint, {
-            method: 'PUT',
-            body: JSON.stringify({ status: updatedStatus }),
-            headers: { 'Content-Type': 'application/json' }
-          });
-          console.log('Status update API response:', response);
+        if (action === 'checkout') {
+          await apiClient.assignEquipment(equipmentId);
+        } else if (action === 'return') {
+          await apiClient.unassignEquipment(equipmentId);
         } else {
-          const response = await apiClient.request(apiEndpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-          });
-          console.log('Action API response:', response);
+          await apiClient.updateEquipmentStatus(equipmentId, updatedStatus);
         }
         
-        // Refresh equipment data from API after successful update
-        console.log('Refreshing equipment data from API...');
-        await fetchEquipment();
-        console.log(`Equipment ${action} completed successfully via API`);
+        console.log('✅ API call successful, database updated!');
         
       } catch (apiError) {
-        console.error('API call failed:', apiError);
-        console.log('Using local state update as fallback...');
-        
-        // Update local state as fallback
-        setEquipmentData(prev => prev.map(item => {
-          if (item._id === equipmentId) {
-            return { ...item, status: updatedStatus };
-          }
-          return item;
-        }));
-        console.log(`Equipment ${action} completed via local state update`);
+        console.error('❌ API call failed:', apiError);
+        console.warn('Using local state only due to API failure');
       }
       
-      console.log(`Action ${action} completed for equipment ${equipmentId}`);
     } catch (error) {
       console.error(`Error executing ${action}:`, error);
     }
@@ -761,10 +751,11 @@ export default function EquipmentOverview() {
 
         {/* Column Headers */}
         <div className="px-6 py-3 bg-gray-50 border-b border-gray-200">
-          <div className="grid grid-cols-12 gap-4 items-center">
+          <div className="grid grid-cols-12 gap-6 items-center">
             <div className="col-span-4 text-xs font-medium text-gray-500 uppercase tracking-wide">Equipment</div>
             <div className="col-span-2 text-xs font-medium text-gray-500 uppercase tracking-wide">Category</div>
-            <div className="col-span-3 text-xs font-medium text-gray-500 uppercase tracking-wide">Status & Service</div>
+            <div className="col-span-1 text-xs font-medium text-gray-500 uppercase tracking-wide text-center">Qty</div>
+            <div className="col-span-2 text-xs font-medium text-gray-500 uppercase tracking-wide">Status & Service</div>
             <div className="col-span-3 text-xs font-medium text-gray-500 uppercase tracking-wide">Actions</div>
           </div>
         </div>
@@ -775,7 +766,7 @@ export default function EquipmentOverview() {
             <div key={item._id} className={`px-6 py-4 hover:bg-gray-50 transition-colors duration-200 ${
               index % 2 === 0 ? 'bg-white' : 'bg-gray-25'
             }`}>
-              <div className="grid grid-cols-12 gap-4 items-center">
+              <div className="grid grid-cols-12 gap-6 items-center">
                 
                 {/* Equipment Info */}
                 <div className="col-span-4 flex items-center gap-3">
@@ -790,7 +781,7 @@ export default function EquipmentOverview() {
                   <div>
                     <h3 className="font-semibold text-gray-900 text-sm">{item.name}</h3>
                     <p className="text-xs text-gray-500">Model: {item.model || 'N/A'}</p>
-                    <p className="text-xs text-gray-500">Qty: {item.quantity || 1}</p>
+                    <p className="text-xs text-gray-500">Serial: {item.serialNumber || 'N/A'}</p>
                   </div>
                 </div>
 
@@ -801,8 +792,18 @@ export default function EquipmentOverview() {
                   </span>
                 </div>
 
+                {/* Quantity */}
+                <div className="col-span-1">
+                  <div className="text-center">
+                    <span className="text-sm font-semibold text-gray-900">{item.quantity || 1}</span>
+                    {item.minQuantity && item.quantity && item.quantity < item.minQuantity && (
+                      <div className="text-xs text-red-600 font-medium">Low</div>
+                    )}
+                  </div>
+                </div>
+
                 {/* Status & Service */}
-                <div className="col-span-3">
+                <div className="col-span-2">
                   <div className="flex flex-col gap-2">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium w-fit ${
                       item.status === 'available' ? 'bg-green-100 text-green-800 border border-green-300' :
@@ -853,18 +854,37 @@ export default function EquipmentOverview() {
                     {item.status === 'available' && (
                       <>
                         <button 
-                          onClick={() => handleEquipmentAction(item._id, 'checkout')}
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleEquipmentAction(item._id, 'checkout');
+                          }}
                           className="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
                         >
-                          <Activity className="w-3 h-3 mr-1 inline" />
-                          Check Out
+                          Checkout
                         </button>
                         <button 
-                          onClick={() => handleEquipmentAction(item._id, 'maintenance')}
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleEquipmentAction(item._id, 'maintenance');
+                          }}
                           className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                         >
-                          <Settings className="w-3 h-3 mr-1 inline" />
                           Maintenance
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleEquipmentAction(item._id, 'schedule');
+                          }}
+                          className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                        >
+                          Schedule
                         </button>
                       </>
                     )}
@@ -872,17 +892,25 @@ export default function EquipmentOverview() {
                     {item.status === 'in_use' && (
                       <>
                         <button 
-                          onClick={() => handleEquipmentAction(item._id, 'return')}
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleEquipmentAction(item._id, 'return');
+                          }}
                           className="px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
                         >
-                          <CheckCircle className="w-3 h-3 mr-1 inline" />
                           Return
                         </button>
                         <button 
-                          onClick={() => handleEquipmentAction(item._id, 'schedule_service')}
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleEquipmentAction(item._id, 'schedule');
+                          }}
                           className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                         >
-                          <Calendar className="w-3 h-3 mr-1 inline" />
                           Schedule
                         </button>
                       </>
@@ -891,17 +919,25 @@ export default function EquipmentOverview() {
                     {item.status === 'maintenance' && (
                       <>
                         <button 
-                          onClick={() => handleEquipmentAction(item._id, 'complete')}
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleEquipmentAction(item._id, 'complete');
+                          }}
                           className="px-3 py-1.5 text-xs font-medium text-white bg-yellow-600 rounded-lg hover:bg-yellow-700 transition-colors"
                         >
-                          <Wrench className="w-3 h-3 mr-1 inline" />
                           Complete
                         </button>
                         <button 
-                          onClick={() => handleEquipmentAction(item._id, 'schedule_service')}
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleEquipmentAction(item._id, 'schedule');
+                          }}
                           className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                         >
-                          <Calendar className="w-3 h-3 mr-1 inline" />
                           Reschedule
                         </button>
                       </>
@@ -910,17 +946,25 @@ export default function EquipmentOverview() {
                     {item.status === 'out_of_order' && (
                       <>
                         <button 
-                          onClick={() => handleEquipmentAction(item._id, 'repair')}
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleEquipmentAction(item._id, 'repair');
+                          }}
                           className="px-3 py-1.5 text-xs font-medium text-white bg-gray-600 rounded-lg hover:bg-gray-700 transition-colors"
                         >
-                          <Wrench className="w-3 h-3 mr-1 inline" />
                           Repair
                         </button>
                         <button 
-                          onClick={() => handleEquipmentAction(item._id, 'schedule_service')}
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleEquipmentAction(item._id, 'schedule');
+                          }}
                           className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                         >
-                          <Calendar className="w-3 h-3 mr-1 inline" />
                           Schedule
                         </button>
                       </>
