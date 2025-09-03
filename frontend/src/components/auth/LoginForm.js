@@ -212,12 +212,7 @@ export default function LoginForm() {
 
           {/* Demo Credentials */}
           <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-            <h3 className="text-sm font-medium text-gray-700 mb-2">Demo Credentials:</h3>
-            <div className="text-xs text-gray-600 space-y-1">
-              <p><strong>Admin:</strong> admin@icu.com / admin123</p>
-              <p><strong>Doctor:</strong> doctor@icu.com / doctor123</p>
-              <p><strong>Nurse:</strong> nurse@icu.com / nurse123</p>
-            </div>
+            
             <div className="mt-3 pt-3 border-t border-gray-200">
               <p className="text-xs text-gray-600">
                 <strong>Google Sign-in:</strong> Admin access restricted to authorized Google accounts only.
