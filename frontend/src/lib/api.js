@@ -231,6 +231,11 @@ class ApiClient {
     })
   }
 
+  // Analytics endpoints
+  async getAnalytics() {
+    return this.request('/analytics')
+  }
+
   // Bed endpoints
   async getBeds() {
     return this.request('/beds')

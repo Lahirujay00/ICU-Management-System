@@ -9,7 +9,7 @@ import StaffOverview from './dashboard/StaffOverview'
 import EquipmentOverview from './dashboard/EquipmentOverview'
 import BedManagement from './dashboard/BedManagement'
 import AnalyticsPanel from './dashboard/AnalyticsPanel'
-import AIRiskAnalysis from './dashboard/AIRiskAnalysis'
+import SettingsPanel from './dashboard/SettingsPanel'
 import Sidebar from './navigation/Sidebar'
 import Header from './navigation/Header'
 
@@ -57,8 +57,6 @@ export default function Dashboard() {
         return <Overview />
       case 'patients':
         return <PatientOverview detailed={true} />
-      case 'ai-risk':
-        return <AIRiskAnalysis />
       case 'staff':
         return <StaffOverview detailed={true} />
       case 'equipment':
@@ -67,6 +65,8 @@ export default function Dashboard() {
         return <BedManagement />
       case 'analytics':
         return <AnalyticsPanel />
+      case 'settings':
+        return <SettingsPanel />
       default:
         return <Overview />
     }

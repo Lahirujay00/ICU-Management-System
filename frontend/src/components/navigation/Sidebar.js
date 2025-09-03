@@ -35,12 +35,6 @@ const navigationItems = [
     description: 'Patient management'
   },
   {
-    name: 'AI Risk Analysis',
-    icon: Brain,
-    tab: 'ai-risk',
-    description: 'AI-powered risk prediction'
-  },
-  {
     name: 'Staff',
     icon: Users,
     tab: 'staff',
