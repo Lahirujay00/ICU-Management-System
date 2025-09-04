@@ -576,216 +576,218 @@ export default function PatientOverview({ detailed = false }) {
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="bg-white rounded-xl p-8 max-w-4xl w-full mx-4 max-h-[95vh] overflow-y-auto shadow-2xl"
+          className="bg-white rounded-xl p-8 max-w-4xl w-full mx-4 max-h-[95vh] shadow-2xl overflow-hidden"
         >
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-3xl font-bold text-gray-900 flex items-center">
-              <Plus className="w-8 h-8 mr-3 text-primary-600" />
-              Add New Patient
-            </h2>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <X className="w-6 h-6" />
-            </button>
-          </div>
-          
-          <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-8">
-            {/* Personal Information Section */}
-            <div className="bg-gray-50 p-6 rounded-lg">
-              <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
-                <User className="w-5 h-5 mr-2 text-primary-600" />
-                Personal Information
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div>
-                  <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-2">
-                    First Name <span className="text-red-500">*</span>
-                  </label>
-                  <input 
-                    type="text" 
-                    id="firstName" 
-                    {...register('firstName', { required: 'First Name is required' })} 
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.firstName ? 'border-red-300' : 'border-gray-300'}`}
-                    placeholder="Enter first name"
-                  />
-                  {errors.firstName && <p className="text-red-500 text-sm mt-1">{errors.firstName.message}</p>}
-                </div>
-                
-                <div>
-                  <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-2">
-                    Last Name <span className="text-red-500">*</span>
-                  </label>
-                  <input 
-                    type="text" 
-                    id="lastName" 
-                    {...register('lastName', { required: 'Last Name is required' })} 
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.lastName ? 'border-red-300' : 'border-gray-300'}`}
-                    placeholder="Enter last name"
-                  />
-                  {errors.lastName && <p className="text-red-500 text-sm mt-1">{errors.lastName.message}</p>}
-                </div>
-                
-                <div>
-                  <label htmlFor="dateOfBirth" className="block text-sm font-medium text-gray-700 mb-2">
-                    Date of Birth <span className="text-red-500">*</span>
-                  </label>
-                  <input 
-                    type="date" 
-                    id="dateOfBirth" 
-                    {...register('dateOfBirth', { required: 'Date of Birth is required' })} 
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.dateOfBirth ? 'border-red-300' : 'border-gray-300'}`}
-                  />
-                  {errors.dateOfBirth && <p className="text-red-500 text-sm mt-1">{errors.dateOfBirth.message}</p>}
-                </div>
-                
-                <div>
-                  <label htmlFor="gender" className="block text-sm font-medium text-gray-700 mb-2">
-                    Gender <span className="text-red-500">*</span>
-                  </label>
-                  <select 
-                    id="gender" 
-                    {...register('gender', { required: 'Gender is required' })} 
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.gender ? 'border-red-300' : 'border-gray-300'}`}
-                  >
-                    <option value="">Select Gender</option>
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                    <option value="other">Other</option>
-                  </select>
-                  {errors.gender && <p className="text-red-500 text-sm mt-1">{errors.gender.message}</p>}
-                </div>
-                
-                <div>
-                  <label htmlFor="contactNumber" className="block text-sm font-medium text-gray-700 mb-2">Contact Number</label>
-                  <input 
-                    type="tel" 
-                    id="contactNumber" 
-                    {...register('contactNumber')} 
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Enter contact number"
-                  />
-                </div>
-                
-                <div>
-                  <label htmlFor="patientId" className="block text-sm font-medium text-gray-700 mb-2">Patient ID</label>
-                  <input 
-                    type="text" 
-                    id="patientId" 
-                    {...register('patientId')} 
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
-                    placeholder="Auto-generated if empty"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Medical Information Section */}
-            <div className="bg-blue-50 p-6 rounded-lg">
-              <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
-                <Stethoscope className="w-5 h-5 mr-2 text-blue-600" />
-                Medical Information
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label htmlFor="diagnosis" className="block text-sm font-medium text-gray-700 mb-2">
-                    Diagnosis <span className="text-red-500">*</span>
-                  </label>
-                  <input 
-                    type="text" 
-                    id="diagnosis" 
-                    {...register('diagnosis', { required: 'Diagnosis is required' })} 
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.diagnosis ? 'border-red-300' : 'border-gray-300'}`}
-                    placeholder="Enter primary diagnosis"
-                  />
-                  {errors.diagnosis && <p className="text-red-500 text-sm mt-1">{errors.diagnosis.message}</p>}
-                </div>
-                
-                <div>
-                  <label htmlFor="admittingPhysician" className="block text-sm font-medium text-gray-700 mb-2">Attending Physician</label>
-                  <input 
-                    type="text" 
-                    id="admittingPhysician" 
-                    {...register('admittingPhysician')} 
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
-                    placeholder="Will be assigned if empty"
-                  />
-                </div>
-                
-                <div>
-                  <label htmlFor="bedNumber" className="block text-sm font-medium text-gray-700 mb-2">
-                    Bed Number <span className="text-red-500">*</span>
-                  </label>
-                  <select 
-                    id="bedNumber" 
-                    {...register('bedNumber', { required: 'Bed number is required' })} 
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.bedNumber ? 'border-red-300' : 'border-gray-300'}`}
-                  >
-                    <option value="">Select Bed</option>
-                    {[...Array(12)].map((_, i) => {
-                      const bedNum = i + 1;
-                      const isOccupied = patients.some(p => 
-                        parseInt(p.bedNumber?.replace(/\D/g, '') || '0') === bedNum
-                      );
-                      return (
-                        <option 
-                          key={bedNum} 
-                          value={bedNum}
-                          disabled={isOccupied}
-                        >
-                          Bed {bedNum} {isOccupied ? '(Occupied)' : '(Available)'}
-                        </option>
-                      );
-                    })}
-                  </select>
-                  {errors.bedNumber && <p className="text-red-500 text-sm mt-1">{errors.bedNumber.message}</p>}
-                </div>
-                
-                <div>
-                  <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-2">Initial Status</label>
-                  <select 
-                    id="status" 
-                    {...register('status')} 
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="observation">Under Observation</option>
-                    <option value="stable">Stable</option>
-                    <option value="critical">Critical</option>
-                  </select>
-                </div>
-              </div>
+          <div className="overflow-y-auto max-h-[80vh]">
+            <div className="flex items-center justify-between mb-8">
+              <h2 className="text-3xl font-bold text-gray-900 flex items-center">
+                <Plus className="w-8 h-8 mr-3 text-primary-600" />
+                Add New Patient
+              </h2>
+              <button
+                onClick={onClose}
+                className="text-gray-400 hover:text-gray-600 p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
             </div>
             
-            {/* Action Buttons */}
-            <div className="flex justify-end space-x-4 pt-6 border-t">
-              <button 
-                type="button" 
-                onClick={onClose} 
-                className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
-                disabled={isSubmitting}
-              >
-                Cancel
-              </button>
-              <button 
-                type="submit" 
-                className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center space-x-2 disabled:opacity-50"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    <span>Adding...</span>
-                  </>
-                ) : (
-                  <>
-                    <Plus className="w-4 h-4" />
-                    <span>Add Patient</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </form>
+            <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-8">
+              {/* Personal Information Section */}
+              <div className="bg-gray-50 p-6 rounded-lg">
+                <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                  <User className="w-5 h-5 mr-2 text-primary-600" />
+                  Personal Information
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div>
+                    <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-2">
+                      First Name <span className="text-red-500">*</span>
+                    </label>
+                    <input 
+                      type="text" 
+                      id="firstName" 
+                      {...register('firstName', { required: 'First Name is required' })} 
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.firstName ? 'border-red-300' : 'border-gray-300'}`}
+                      placeholder="Enter first name"
+                    />
+                    {errors.firstName && <p className="text-red-500 text-sm mt-1">{errors.firstName.message}</p>}
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-2">
+                      Last Name <span className="text-red-500">*</span>
+                    </label>
+                    <input 
+                      type="text" 
+                      id="lastName" 
+                      {...register('lastName', { required: 'Last Name is required' })} 
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.lastName ? 'border-red-300' : 'border-gray-300'}`}
+                      placeholder="Enter last name"
+                    />
+                    {errors.lastName && <p className="text-red-500 text-sm mt-1">{errors.lastName.message}</p>}
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="dateOfBirth" className="block text-sm font-medium text-gray-700 mb-2">
+                      Date of Birth <span className="text-red-500">*</span>
+                    </label>
+                    <input 
+                      type="date" 
+                      id="dateOfBirth" 
+                      {...register('dateOfBirth', { required: 'Date of Birth is required' })} 
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.dateOfBirth ? 'border-red-300' : 'border-gray-300'}`}
+                    />
+                    {errors.dateOfBirth && <p className="text-red-500 text-sm mt-1">{errors.dateOfBirth.message}</p>}
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="gender" className="block text-sm font-medium text-gray-700 mb-2">
+                      Gender <span className="text-red-500">*</span>
+                    </label>
+                    <select 
+                      id="gender" 
+                      {...register('gender', { required: 'Gender is required' })} 
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.gender ? 'border-red-300' : 'border-gray-300'}`}
+                    >
+                      <option value="">Select Gender</option>
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                      <option value="other">Other</option>
+                    </select>
+                    {errors.gender && <p className="text-red-500 text-sm mt-1">{errors.gender.message}</p>}
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="contactNumber" className="block text-sm font-medium text-gray-700 mb-2">Contact Number</label>
+                    <input 
+                      type="tel" 
+                      id="contactNumber" 
+                      {...register('contactNumber')} 
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Enter contact number"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="patientId" className="block text-sm font-medium text-gray-700 mb-2">Patient ID</label>
+                    <input 
+                      type="text" 
+                      id="patientId" 
+                      {...register('patientId')} 
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                      placeholder="Auto-generated if empty"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Medical Information Section */}
+              <div className="bg-blue-50 p-6 rounded-lg">
+                <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
+                  <Stethoscope className="w-5 h-5 mr-2 text-blue-600" />
+                  Medical Information
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label htmlFor="diagnosis" className="block text-sm font-medium text-gray-700 mb-2">
+                      Diagnosis <span className="text-red-500">*</span>
+                    </label>
+                    <input 
+                      type="text" 
+                      id="diagnosis" 
+                      {...register('diagnosis', { required: 'Diagnosis is required' })} 
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.diagnosis ? 'border-red-300' : 'border-gray-300'}`}
+                      placeholder="Enter primary diagnosis"
+                    />
+                    {errors.diagnosis && <p className="text-red-500 text-sm mt-1">{errors.diagnosis.message}</p>}
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="admittingPhysician" className="block text-sm font-medium text-gray-700 mb-2">Attending Physician</label>
+                    <input 
+                      type="text" 
+                      id="admittingPhysician" 
+                      {...register('admittingPhysician')} 
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                      placeholder="Will be assigned if empty"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="bedNumber" className="block text-sm font-medium text-gray-700 mb-2">
+                      Bed Number <span className="text-red-500">*</span>
+                    </label>
+                    <select 
+                      id="bedNumber" 
+                      {...register('bedNumber', { required: 'Bed number is required' })} 
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.bedNumber ? 'border-red-300' : 'border-gray-300'}`}
+                    >
+                      <option value="">Select Bed</option>
+                      {[...Array(12)].map((_, i) => {
+                        const bedNum = i + 1;
+                        const isOccupied = patients.some(p => 
+                          parseInt(p.bedNumber?.replace(/\D/g, '') || '0') === bedNum
+                        );
+                        return (
+                          <option 
+                            key={bedNum} 
+                            value={bedNum}
+                            disabled={isOccupied}
+                          >
+                            Bed {bedNum} {isOccupied ? '(Occupied)' : '(Available)'}
+                          </option>
+                        );
+                      })}
+                    </select>
+                    {errors.bedNumber && <p className="text-red-500 text-sm mt-1">{errors.bedNumber.message}</p>}
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-2">Initial Status</label>
+                    <select 
+                      id="status" 
+                      {...register('status')} 
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="observation">Under Observation</option>
+                      <option value="stable">Stable</option>
+                      <option value="critical">Critical</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Action Buttons */}
+              <div className="flex justify-end space-x-4 pt-6 border-t">
+                <button 
+                  type="button" 
+                  onClick={onClose} 
+                  className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                  disabled={isSubmitting}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center space-x-2 disabled:opacity-50"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <span>Adding...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4" />
+                      <span>Add Patient</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
         </motion.div>
       </div>
     );
