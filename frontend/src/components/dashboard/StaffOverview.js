@@ -1225,7 +1225,8 @@ function AddStaffModal({ onClose, onSubmit, isSubmitting }) {
         padding: 0
       }}
     >
-      <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] pr-2 ">
+        <div className="overflow-y-auto max-h-[80vh] pr-2">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold text-gray-900">Add New Staff Member</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
@@ -1352,6 +1353,8 @@ function AddStaffModal({ onClose, onSubmit, isSubmitting }) {
         </form>
       </div>
     </div>
+    </div>
+    
   )
 }
 

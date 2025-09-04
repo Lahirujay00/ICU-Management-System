@@ -576,7 +576,7 @@ export default function PatientOverview({ detailed = false }) {
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="bg-white rounded-xl p-8 max-w-4xl w-full mx-4 max-h-[95vh] shadow-2xl overflow-hidden"
+          className="bg-white rounded-xl p-6 max-w-4xl w-full mx-4 max-h-[95vh] shadow-2xl overflow-hidden pr-2"
         >
           <div className="overflow-y-auto max-h-[80vh]">
             <div className="flex items-center justify-between mb-8">

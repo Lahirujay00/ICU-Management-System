@@ -120,8 +120,9 @@ export default function AddBedModal({ isOpen, onClose, onBedAdded }) {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
     style={{ width: '100vw', height: '100vh', margin: 0, padding: 0 }}>
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-lg p-4 shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden pr-2">
         {/* Header */}
+        <div className="overflow-y-auto max-h-[80vh]">
         <div className="flex justify-between items-center p-6 border-b border-gray-200">
           <h2 className="text-xl font-semibold text-gray-900">Add New Bed</h2>
           <button
@@ -323,6 +324,7 @@ export default function AddBedModal({ isOpen, onClose, onBedAdded }) {
           </div>
         </form>
       </div>
+    </div>
     </div>
   )
 }
