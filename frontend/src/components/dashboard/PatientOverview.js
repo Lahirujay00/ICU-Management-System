@@ -1105,12 +1105,7 @@ export default function PatientOverview({ detailed = false }) {
         )}
       </div>
 
-      {/* AI Risk Assessment Panel */}
-      {selectedPatient && (
-        <RiskAssessmentPanel 
-          patient={selectedPatient}
-        />
-      )}
+      
 
       {/* Enhanced Modals */}
       <EnhancedAddPatientModal

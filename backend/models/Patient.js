@@ -62,14 +62,7 @@ const patientSchema = new mongoose.Schema({
   medications: [medicationSchema],
   labResults: [labResultSchema],
   
-  // AI Risk Assessment
-  riskScore: { type: Number, min: 1, max: 10, default: 5 },
-  riskLevel: { 
-    type: String, 
-    enum: ['low', 'medium', 'high', 'critical'], 
-    default: 'medium' 
-  },
-  lastRiskAssessment: Date,
+  
   
   // Medical History
   allergies: [String],
