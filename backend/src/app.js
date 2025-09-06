@@ -86,6 +86,25 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Debug endpoint for environment variables (temporary)
+app.get('/debug', (req, res) => {
+  const dbStatus = mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected';
+  res.status(200).json({
+    environment: process.env.NODE_ENV,
+    database: {
+      status: dbStatus,
+      mongoURI: process.env.MONGODB_URI ? 'Set' : 'Not Set',
+      mongoURIStart: process.env.MONGODB_URI ? process.env.MONGODB_URI.substring(0, 20) + '...' : 'N/A'
+    },
+    envVariables: {
+      MONGODB_URI: !!process.env.MONGODB_URI,
+      NODE_ENV: !!process.env.NODE_ENV,
+      JWT_SECRET: !!process.env.JWT_SECRET,
+      CORS_ORIGIN: !!process.env.CORS_ORIGIN
+    }
+  });
+});
+
 // API routes
 app.get('/api', (req, res) => {
   res.status(200).json({
