@@ -51,6 +51,26 @@ if (process.env.NODE_ENV === 'development') {
   app.use(morgan('combined'));
 }
 
+// Root route - API welcome message
+app.get('/', (req, res) => {
+  res.status(200).json({
+    message: 'ICU Management System API',
+    status: 'Running',
+    version: '1.0.0',
+    endpoints: {
+      health: '/health',
+      api: '/api',
+      auth: '/api/auth',
+      patients: '/api/patients',
+      staff: '/api/staff',
+      equipment: '/api/equipment',
+      dashboard: '/api/dashboard',
+      analytics: '/api/analytics'
+    },
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({ 
@@ -61,6 +81,22 @@ app.get('/health', (req, res) => {
 });
 
 // API routes
+app.get('/api', (req, res) => {
+  res.status(200).json({
+    message: 'ICU Management System API',
+    version: '1.0.0',
+    documentation: 'API endpoints available',
+    endpoints: [
+      'GET /api/auth - Authentication endpoints',
+      'GET /api/patients - Patient management',
+      'GET /api/staff - Staff management', 
+      'GET /api/equipment - Equipment tracking',
+      'GET /api/dashboard - Dashboard data',
+      'GET /api/analytics - Analytics data'
+    ]
+  });
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/patients', patientRoutes);
 app.use('/api/staff', staffRoutes);
