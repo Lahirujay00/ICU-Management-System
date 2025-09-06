@@ -7,12 +7,12 @@ async function testPatientAPI() {
     
     // Test health endpoint
     console.log('\n1. Testing health endpoint...');
-    const healthResponse = await axios.get('http://localhost:5000/health');
+    const healthResponse = await axios.get('https://icu-management-system.vercel.app/health');
     console.log('✅ Health check:', healthResponse.data);
     
     // Test get all patients
     console.log('\n2. Testing get all patients...');
-    const patientsResponse = await axios.get('http://localhost:5000/api/patients');
+    const patientsResponse = await axios.get('https://icu-management-system.vercel.app/api/patients');
     console.log('✅ Get patients:', patientsResponse.data.length, 'patients found');
     
     // Test create patient
@@ -28,7 +28,7 @@ async function testPatientAPI() {
       emergencyContact: 'Test Contact: 123-456-7890'
     };
     
-    const createResponse = await axios.post('http://localhost:5000/api/patients', testPatient);
+    const createResponse = await axios.post('https://icu-management-system.vercel.app/api/patients', testPatient);
     console.log('✅ Create patient successful:', createResponse.data);
     
     console.log('\n🎉 All tests passed! Patient API is working.');

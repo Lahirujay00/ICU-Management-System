@@ -32,7 +32,7 @@ export default function AnalyticsPanel() {
         setIsLoading(true)
         setError(null)
         console.log('📊 Fetching analytics data from API...')
-        console.log('🔗 API URL:', process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api')
+        console.log('🔗 API URL:', process.env.NEXT_PUBLIC_API_URL || 'https://icu-management-system.vercel.app/api')
         
         const data = await apiClient.getAnalytics()
         console.log('📈 Analytics data received:', data)

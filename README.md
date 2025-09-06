@@ -69,7 +69,7 @@ JWT_EXPIRES_IN=7d
 
 #### Frontend (.env.local)
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:5000/api
+NEXT_PUBLIC_API_URL=https://icu-management-system.vercel.app/api
 NEXTAUTH_SECRET=your_nextauth_secret_here
 NEXTAUTH_URL=http://localhost:3000
 ```

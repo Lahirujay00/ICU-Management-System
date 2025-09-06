@@ -1,7 +1,7 @@
 // Test script to verify clock in/out functionality
 const fetch = require('node-fetch');
 
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = 'https://icu-management-system.vercel.app/api';
 
 // Test staff ID (from the schedules we saw earlier)
 const TEST_STAFF_ID = '68af3c38af230c8087d4c7fb'; // This staff has morning shift today

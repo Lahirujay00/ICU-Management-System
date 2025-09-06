@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:5000/api'
+const API_BASE_URL = 'https://icu-management-system.vercel.app/api'
 
 async function testPatientAPI() {
   console.log('Testing patient API...')

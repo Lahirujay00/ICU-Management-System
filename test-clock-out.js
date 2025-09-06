@@ -1,7 +1,7 @@
 // Test script to verify clock out functionality and absent marking
 const fetch = require('node-fetch');
 
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = 'https://icu-management-system.vercel.app/api';
 const TEST_STAFF_ID = '68af3c38af230c8087d4c7fb'; // Staff with morning shift today
 
 async function testClockOut() {

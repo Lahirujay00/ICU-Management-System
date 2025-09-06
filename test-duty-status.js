@@ -5,7 +5,7 @@ async function testDutyStatusUpdate() {
   
   // Test staff ID from the logs
   const staffId = '68af3c38af230c8087d4c7fb';
-  const apiUrl = 'http://localhost:5000/api';
+  const apiUrl = 'https://icu-management-system.vercel.app/api';
   
   // Test data
   const updateData = {

@@ -2,7 +2,7 @@
 console.log('🧪 Testing patient creation from frontend...');
 
 // Environment variable check
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://icu-management-system.vercel.app/api';
 console.log('🌐 API Base URL:', API_BASE_URL);
 
 // Simulate form data exactly as frontend would send it

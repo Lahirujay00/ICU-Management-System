@@ -114,13 +114,13 @@ Backend now properly handles:
 
 ```bash
 # Test backend health
-curl http://localhost:5000/health
+curl https://icu-management-system.vercel.app/health
 
 # Test get patients (should return mock data if DB not connected)
-curl http://localhost:5000/api/patients
+curl https://icu-management-system.vercel.app/api/patients
 
 # Test create patient
-curl -X POST http://localhost:5000/api/patients \
+curl -X POST https://icu-management-system.vercel.app/api/patients \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Test Patient",
