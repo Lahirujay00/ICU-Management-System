@@ -48,11 +48,11 @@ NEXT_PUBLIC_FIREBASE_APP_ID=1:123456789:web:abcdefghijklmnop
 4. Click **Create Credentials** > **OAuth client ID**
 5. Choose **Web application**
 6. Add authorized JavaScript origins:
-   - `http://localhost:3000`
+   - `https://icu-management-system-front.vercel.app`
    - `http://localhost:3001`
    - Your production domain (when deploying)
 7. Add authorized redirect URIs:
-   - `http://localhost:3000/api/auth/callback/google`
+   - `https://icu-management-system-front.vercel.app/api/auth/callback/google`
    - `http://localhost:3001/api/auth/callback/google`
    - Your production domain callback URL
 8. Click **Create**
@@ -89,7 +89,7 @@ const adminEmails = [
    npm run dev
    ```
 
-2. Go to `http://localhost:3000` or `http://localhost:3001`
+2. Go to `https://icu-management-system-front.vercel.app` or `http://localhost:3001`
 3. Click "Sign in with Google"
 4. Use a Gmail account that's in your admin list
 5. You should be redirected to the dashboard if successful
@@ -118,7 +118,7 @@ Currently configured admin emails (update these in the NextAuth config):
 
 1. **"Error: Redirect URI mismatch"**
    - Add the correct redirect URI in Google Cloud Console
-   - Format: `http://localhost:3000/api/auth/callback/google`
+   - Format: `https://icu-management-system-front.vercel.app/api/auth/callback/google`
 
 2. **"Firebase project not found"**
    - Verify your Firebase project ID in `.env.local`

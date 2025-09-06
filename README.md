@@ -71,7 +71,7 @@ JWT_EXPIRES_IN=7d
 ```env
 NEXT_PUBLIC_API_URL=https://icu-management-system.vercel.app/api
 NEXTAUTH_SECRET=your_nextauth_secret_here
-NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_URL=https://icu-management-system-front.vercel.app
 ```
 
 ## Features

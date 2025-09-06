@@ -8,7 +8,7 @@ export async function analyzePatientRisk(patientData) {
       headers: {
         'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': 'http://localhost:3000',
+        'HTTP-Referer': 'https://icu-management-system-front.vercel.app',
         'X-Title': 'ICU Management System'
       },
       body: JSON.stringify({
@@ -78,7 +78,7 @@ export async function generateClinicalInsights(patientData, context) {
       headers: {
         'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': 'http://localhost:3000',
+        'HTTP-Referer': 'https://icu-management-system-front.vercel.app',
         'X-Title': 'ICU Management System'
       },
       body: JSON.stringify({
@@ -131,7 +131,7 @@ export async function predictPatientOutcome(patientData) {
       headers: {
         'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
         'Content-Type': 'application/json',
-        'HTTP-Referer': 'http://localhost:3000',
+        'HTTP-Referer': 'https://icu-management-system-front.vercel.app',
         'X-Title': 'ICU Management System'
       },
       body: JSON.stringify({
