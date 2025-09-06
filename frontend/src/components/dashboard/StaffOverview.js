@@ -3342,7 +3342,8 @@ const AssignPatientModal = ({ staff, onClose, onStaffUpdate }) => {
         padding: 0
       }}
     >
-      <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh]">
+        <div className="overflow-y-auto max-h-[80vh] pr-2">
         <div className="flex justify-between items-center mb-6">
           <div>
             <h2 className="text-xl font-bold text-gray-900">Assign Patient to Staff</h2>
@@ -3509,6 +3510,7 @@ const AssignPatientModal = ({ staff, onClose, onStaffUpdate }) => {
           </button>
         </div>
       </div>
+    </div>
     </div>
   )
 }
@@ -3733,7 +3735,8 @@ const EmergencyAlertModal = ({ staff, onClose }) => {
         padding: 0
       }}
     >
-      <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-lg p-6 w-full max-w-lg max-h-[90vh] pr-2">
+        <div className="overflow-y-auto max-h-[80vh] pr-2">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-bold text-red-900 flex items-center gap-2">
             <AlertTriangle className="w-6 h-6 text-red-600" />
@@ -3851,6 +3854,7 @@ const EmergencyAlertModal = ({ staff, onClose }) => {
           </button>
         </div>
       </div>
+    </div>
     </div>
   )
 }
