@@ -72,8 +72,8 @@ export default function Overview() {
       
       console.log('✅ Overview data received:', analyticsData)
       
-      // Calculate stats from analytics data (excluding discharged patients)
-      const totalPatients = (analyticsData.patientOutcomes.totalAdmissions || 0) - (analyticsData.patientOutcomes.recovered || 0)
+      // Calculate stats from analytics data (totalAdmissions already contains only active patients)
+      const totalPatients = analyticsData.patientOutcomes.totalAdmissions || 0
       const criticalPatients = analyticsData.patientOutcomes.criticalCases || 0
       const stablePatients = analyticsData.patientOutcomes.stabilized || 0
       const availableBeds = analyticsData.bedUtilization.availableBeds || 0

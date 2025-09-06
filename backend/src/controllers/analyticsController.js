@@ -28,31 +28,46 @@ export const getAnalytics = async (req, res) => {
     });
     console.log('🔍 Patient status breakdown:', patientStatusCounts);
 
-    // Calculate patient outcomes from actual database data
+    // Calculate patient outcomes from actual database data - using discharge reasons
     const totalAdmissions = patients.length;
-    const recoveredPatients = patients.filter(p => p.status === 'recovered' || p.status === 'discharged').length;
-    const transferredPatients = patients.filter(p => p.status === 'transferred').length;
-    const deceasedPatients = patients.filter(p => p.status === 'deceased').length;
+    
+    // Count based on discharge reasons for more accurate mortality calculation
+    const dischargedPatients = patients.filter(p => p.status === 'discharged' && p.dischargeDate);
+    const recoveredPatients = dischargedPatients.filter(p => p.dischargeReason === 'discharged').length;
+    const transferredPatients = dischargedPatients.filter(p => p.dischargeReason === 'transfer').length;
+    const deceasedPatients = dischargedPatients.filter(p => p.dischargeReason === 'death').length;
+    const againstAdvicePatients = dischargedPatients.filter(p => p.dischargeReason === 'against_medical_advice').length;
+    
+    // Active patients (still in ICU)
     const activePatients = patients.filter(p => p.status === 'active' || p.status === 'stable' || p.status === 'critical').length;
     const criticalPatients = patients.filter(p => p.status === 'critical').length;
+    
+    // Total completed cases (excludes active patients)
+    const totalCompletedCases = dischargedPatients.length;
+    
+    console.log(`💊 Mortality calculation based on discharge reasons:`);
+    console.log(`   - Total patients: ${totalAdmissions}`);
+    console.log(`   - Discharged patients: ${dischargedPatients.length}`);
+    console.log(`   - Deceased (dischargeReason='death'): ${deceasedPatients}`);
+    console.log(`   - Recovered (dischargeReason='discharged'): ${recoveredPatients}`);
+    console.log(`   - Transferred (dischargeReason='transfer'): ${transferredPatients}`);
+    console.log(`   - Against Medical Advice: ${againstAdvicePatients}`);
+    console.log(`   - Active patients: ${activePatients}`);
 
-    console.log(`💊 Mortality calculation: ${deceasedPatients} deceased out of ${totalAdmissions} total patients`);
-    console.log(`💊 Raw mortality rate: ${deceasedPatients / totalAdmissions * 100}%`);
+    // Calculate actual mortality rates based on completed cases
+    const mortalityRate = totalCompletedCases > 0 ? parseFloat(((deceasedPatients / totalCompletedCases) * 100).toFixed(2)) : 0;
+    const survivalRate = totalCompletedCases > 0 ? parseFloat((((totalCompletedCases - deceasedPatients) / totalCompletedCases) * 100).toFixed(2)) : 100;
+    const recoveryRate = totalCompletedCases > 0 ? parseFloat(((recoveredPatients / totalCompletedCases) * 100).toFixed(2)) : 0;
 
-    // Calculate actual mortality rates
-    const mortalityRate = totalAdmissions > 0 ? parseFloat(((deceasedPatients / totalAdmissions) * 100).toFixed(2)) : 0;
-    const survivalRate = totalAdmissions > 0 ? parseFloat((((totalAdmissions - deceasedPatients) / totalAdmissions) * 100).toFixed(2)) : 100;
-    const recoveryRate = totalAdmissions > 0 ? parseFloat(((recoveredPatients / totalAdmissions) * 100).toFixed(2)) : 0;
+    console.log(`📊 Calculated rates - Mortality: ${mortalityRate}% (${deceasedPatients}/${totalCompletedCases}), Survival: ${survivalRate}%, Recovery: ${recoveryRate}%`);
 
-    console.log(`📊 Calculated rates - Mortality: ${mortalityRate}%, Survival: ${survivalRate}%, Recovery: ${recoveryRate}%`);
-
-    // Calculate death rate by age from actual patient data
-    const patientsWithAge = patients.filter(p => p.age);
+    // Calculate death rate by age from actual patient data (based on discharge reasons)
+    const dischargedPatientsWithAge = dischargedPatients.filter(p => p.age);
     const deathRateByAge = {
-      '18-30': calculateAgeGroupDeathRate(patientsWithAge, 18, 30),
-      '31-50': calculateAgeGroupDeathRate(patientsWithAge, 31, 50),
-      '51-70': calculateAgeGroupDeathRate(patientsWithAge, 51, 70),
-      '70+': calculateAgeGroupDeathRate(patientsWithAge, 70, 120)
+      '18-30': calculateAgeGroupDeathRate(dischargedPatientsWithAge, 18, 30),
+      '31-50': calculateAgeGroupDeathRate(dischargedPatientsWithAge, 31, 50),
+      '51-70': calculateAgeGroupDeathRate(dischargedPatientsWithAge, 51, 70),
+      '70+': calculateAgeGroupDeathRate(dischargedPatientsWithAge, 70, 120)
     };
 
     // Equipment status analysis from actual database
@@ -91,10 +106,13 @@ export const getAnalytics = async (req, res) => {
 
     const analyticsData = {
       patientOutcomes: {
-        totalAdmissions,
+        totalAdmissions: activePatients, // Only count active patients in overview
+        totalCompletedCases,
         recovered: recoveredPatients,
         transferred: transferredPatients,
         deceased: deceasedPatients,
+        againstAdvice: againstAdvicePatients,
+        activePatients,
         mortalityRate: parseFloat(mortalityRate),
         survivalRate: parseFloat(survivalRate),
         recoveryRate: parseFloat(recoveryRate),
@@ -140,7 +158,7 @@ export const getAnalytics = async (req, res) => {
         patientSatisfaction: (4.0 + Math.random()).toFixed(1),
         staffUtilization: parseInt(staffUtilization),
         overtimeHours: Math.floor(Math.random() * 50),
-        staffToPatientRatio: totalAdmissions > 0 ? (activeStaff / totalAdmissions).toFixed(2) : 0,
+        staffToPatientRatio: activePatients > 0 ? (activeStaff / activePatients).toFixed(2) : 0,
         shiftCoverage: Math.max(85, Math.floor(Math.random() * 15) + 85)
       },
       equipmentStatus: {
@@ -243,10 +261,11 @@ export const getAnalytics = async (req, res) => {
 // Helper functions
 function calculateAgeGroupDeathRate(patients, minAge, maxAge) {
   const ageGroupPatients = patients.filter(p => p.age >= minAge && p.age <= maxAge);
-  const deceasedInGroup = ageGroupPatients.filter(p => p.status === 'deceased').length;
+  const dischargedInGroup = ageGroupPatients.filter(p => p.status === 'discharged' && p.dischargeDate);
+  const deceasedInGroup = dischargedInGroup.filter(p => p.dischargeReason === 'death').length;
   
-  if (ageGroupPatients.length === 0) return 0;
-  return ((deceasedInGroup / ageGroupPatients.length) * 100).toFixed(1);
+  if (dischargedInGroup.length === 0) return 0;
+  return ((deceasedInGroup / dischargedInGroup.length) * 100).toFixed(1);
 }
 
 function calculateAverageStayLength(patients) {
