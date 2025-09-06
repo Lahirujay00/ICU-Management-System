@@ -588,12 +588,14 @@ export default function PatientOverview({ detailed = false }) {
     if (!show || !patient) return null;
   
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+        style={{ width: '100vw', height: '100vh', margin: 0, padding: 0 }}>
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="bg-white rounded-xl p-8 max-w-2xl w-full mx-4 max-h-[95vh] overflow-y-auto shadow-2xl"
+          className="bg-white rounded-xl p-6 max-w-2xl w-full mx-4 max-h-[95vh] overflow-y-auto shadow-2xl pr-2"
         >
+          <div className="overflow-y-auto max-h-[80vh]">
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-3xl font-bold text-gray-900 flex items-center">
               <Edit className="w-8 h-8 mr-3 text-green-600" />
@@ -752,6 +754,7 @@ export default function PatientOverview({ detailed = false }) {
               </button>
             </div>
           </form>
+          </div>
         </motion.div>
       </div>
     );
