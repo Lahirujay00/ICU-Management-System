@@ -47,6 +47,7 @@ export default function AnalyticsPanel() {
         setAnalytics({
           patientOutcomes: {
             totalAdmissions: 45,
+            totalPatientsEver: 45,
             recovered: 35,
             transferred: 6,
             deceased: 4,
@@ -338,7 +339,7 @@ export default function AnalyticsPanel() {
                   fill="transparent"
                   stroke="#10b981"
                   strokeWidth="3"
-                  strokeDasharray={`${(analytics.patientOutcomes.recovered / analytics.patientOutcomes.totalAdmissions) * 100} ${100 - (analytics.patientOutcomes.recovered / analytics.patientOutcomes.totalAdmissions) * 100}`}
+                  strokeDasharray={`${(analytics.patientOutcomes.recovered / analytics.patientOutcomes.totalPatientsEver) * 100} ${100 - (analytics.patientOutcomes.recovered / analytics.patientOutcomes.totalPatientsEver) * 100}`}
                   strokeDashoffset="25"
                 />
                 {/* Transferred segment */}
@@ -349,8 +350,8 @@ export default function AnalyticsPanel() {
                   fill="transparent"
                   stroke="#3b82f6"
                   strokeWidth="3"
-                  strokeDasharray={`${(analytics.patientOutcomes.transferred / analytics.patientOutcomes.totalAdmissions) * 100} ${100 - (analytics.patientOutcomes.transferred / analytics.patientOutcomes.totalAdmissions) * 100}`}
-                  strokeDashoffset={`${25 - (analytics.patientOutcomes.recovered / analytics.patientOutcomes.totalAdmissions) * 100}`}
+                  strokeDasharray={`${(analytics.patientOutcomes.transferred / analytics.patientOutcomes.totalPatientsEver) * 100} ${100 - (analytics.patientOutcomes.transferred / analytics.patientOutcomes.totalPatientsEver) * 100}`}
+                  strokeDashoffset={`${25 - (analytics.patientOutcomes.recovered / analytics.patientOutcomes.totalPatientsEver) * 100}`}
                 />
                 {/* Deceased segment */}
                 <circle
@@ -360,13 +361,13 @@ export default function AnalyticsPanel() {
                   fill="transparent"
                   stroke="#ef4444"
                   strokeWidth="3"
-                  strokeDasharray={`${(analytics.patientOutcomes.deceased / analytics.patientOutcomes.totalAdmissions) * 100} ${100 - (analytics.patientOutcomes.deceased / analytics.patientOutcomes.totalAdmissions) * 100}`}
-                  strokeDashoffset={`${25 - (analytics.patientOutcomes.recovered / analytics.patientOutcomes.totalAdmissions) * 100 - (analytics.patientOutcomes.transferred / analytics.patientOutcomes.totalAdmissions) * 100}`}
+                  strokeDasharray={`${(analytics.patientOutcomes.deceased / analytics.patientOutcomes.totalPatientsEver) * 100} ${100 - (analytics.patientOutcomes.deceased / analytics.patientOutcomes.totalPatientsEver) * 100}`}
+                  strokeDashoffset={`${25 - (analytics.patientOutcomes.recovered / analytics.patientOutcomes.totalPatientsEver) * 100 - (analytics.patientOutcomes.transferred / analytics.patientOutcomes.totalPatientsEver) * 100}`}
                 />
               </svg>
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-gray-900">{analytics.patientOutcomes.totalAdmissions}</div>
+                  <div className="text-2xl font-bold text-gray-900">{analytics.patientOutcomes.totalPatientsEver}</div>
                   <div className="text-xs text-gray-500">Total</div>
                 </div>
               </div>

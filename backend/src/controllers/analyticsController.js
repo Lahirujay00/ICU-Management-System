@@ -107,6 +107,7 @@ export const getAnalytics = async (req, res) => {
     const analyticsData = {
       patientOutcomes: {
         totalAdmissions: activePatients, // Only count active patients in overview
+        totalPatientsEver: totalAdmissions, // All patients ever for chart calculations
         totalCompletedCases,
         recovered: recoveredPatients,
         transferred: transferredPatients,
