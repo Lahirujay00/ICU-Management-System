@@ -89,12 +89,24 @@ app.get('/health', (req, res) => {
 // Debug endpoint for environment variables (temporary)
 app.get('/debug', (req, res) => {
   const dbStatus = mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected';
+  const readyStates = {
+    0: 'disconnected',
+    1: 'connected',
+    2: 'connecting',
+    3: 'disconnecting'
+  };
+  
   res.status(200).json({
     environment: process.env.NODE_ENV,
     database: {
       status: dbStatus,
+      readyState: mongoose.connection.readyState,
+      readyStateDesc: readyStates[mongoose.connection.readyState],
       mongoURI: process.env.MONGODB_URI ? 'Set' : 'Not Set',
-      mongoURIStart: process.env.MONGODB_URI ? process.env.MONGODB_URI.substring(0, 20) + '...' : 'N/A'
+      mongoURIStart: process.env.MONGODB_URI ? process.env.MONGODB_URI.substring(0, 30) + '...' : 'N/A',
+      connectionName: mongoose.connection.name || 'No connection',
+      connectionHost: mongoose.connection.host || 'No host',
+      lastError: mongoose.connection._lastError || 'None'
     },
     envVariables: {
       MONGODB_URI: !!process.env.MONGODB_URI,
@@ -103,6 +115,19 @@ app.get('/debug', (req, res) => {
       CORS_ORIGIN: !!process.env.CORS_ORIGIN
     }
   });
+});
+
+// Force reconnect endpoint for testing
+app.get('/reconnect', async (req, res) => {
+  try {
+    console.log('🔄 Force reconnecting to MongoDB...');
+    await mongoose.disconnect();
+    await connectDB();
+    res.json({ message: 'Reconnection attempted', status: 'success' });
+  } catch (error) {
+    console.error('❌ Reconnection failed:', error);
+    res.status(500).json({ message: 'Reconnection failed', error: error.message });
+  }
 });
 
 // API routes
