@@ -119,7 +119,7 @@ const patientSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['stable', 'critical', 'improving', 'deteriorating', 'discharged'],
+    enum: ['stable', 'critical', 'improving', 'deteriorating', 'discharged', 'deceased'],
     default: 'stable'
   },
   assignedDoctor: {

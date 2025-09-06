@@ -53,7 +53,7 @@ const patientSchema = new mongoose.Schema({
   dischargeDate: Date,
   status: { 
     type: String, 
-    enum: ['admitted', 'stable', 'observation', 'critical', 'discharged'], 
+    enum: ['admitted', 'stable', 'observation', 'critical', 'discharged', 'deceased'], 
     default: 'admitted' 
   },
   

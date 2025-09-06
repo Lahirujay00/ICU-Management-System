@@ -21,6 +21,13 @@ export const getAnalytics = async (req, res) => {
 
     console.log(`📋 Found ${patients.length} patients, ${equipment.length} equipment, ${staff.length} staff, ${beds.length} beds`);
 
+    // Debug: Log all patient statuses to understand data
+    const patientStatusCounts = {};
+    patients.forEach(p => {
+      patientStatusCounts[p.status] = (patientStatusCounts[p.status] || 0) + 1;
+    });
+    console.log('🔍 Patient status breakdown:', patientStatusCounts);
+
     // Calculate patient outcomes from actual database data
     const totalAdmissions = patients.length;
     const recoveredPatients = patients.filter(p => p.status === 'recovered' || p.status === 'discharged').length;
@@ -29,10 +36,15 @@ export const getAnalytics = async (req, res) => {
     const activePatients = patients.filter(p => p.status === 'active' || p.status === 'stable' || p.status === 'critical').length;
     const criticalPatients = patients.filter(p => p.status === 'critical').length;
 
+    console.log(`💊 Mortality calculation: ${deceasedPatients} deceased out of ${totalAdmissions} total patients`);
+    console.log(`💊 Raw mortality rate: ${deceasedPatients / totalAdmissions * 100}%`);
+
     // Calculate actual mortality rates
-    const mortalityRate = totalAdmissions > 0 ? ((deceasedPatients / totalAdmissions) * 100).toFixed(2) : 0;
-    const survivalRate = totalAdmissions > 0 ? (((totalAdmissions - deceasedPatients) / totalAdmissions) * 100).toFixed(2) : 100;
-    const recoveryRate = totalAdmissions > 0 ? ((recoveredPatients / totalAdmissions) * 100).toFixed(2) : 0;
+    const mortalityRate = totalAdmissions > 0 ? parseFloat(((deceasedPatients / totalAdmissions) * 100).toFixed(2)) : 0;
+    const survivalRate = totalAdmissions > 0 ? parseFloat((((totalAdmissions - deceasedPatients) / totalAdmissions) * 100).toFixed(2)) : 100;
+    const recoveryRate = totalAdmissions > 0 ? parseFloat(((recoveredPatients / totalAdmissions) * 100).toFixed(2)) : 0;
+
+    console.log(`📊 Calculated rates - Mortality: ${mortalityRate}%, Survival: ${survivalRate}%, Recovery: ${recoveryRate}%`);
 
     // Calculate death rate by age from actual patient data
     const patientsWithAge = patients.filter(p => p.age);
@@ -98,10 +110,10 @@ export const getAnalytics = async (req, res) => {
         staffUtilization: parseInt(staffUtilization)
       },
       deathRateAnalysis: {
-        currentMonth: parseFloat(mortalityRate),
-        lastMonth: Math.max(0, parseFloat(mortalityRate) + (Math.random() * 2 - 1)).toFixed(2), // Simulated last month
-        trend: deceasedPatients === 0 ? 'decreasing' : 'stable',
-        yearToDate: (parseFloat(mortalityRate) + Math.random() * 1).toFixed(2),
+        currentMonth: mortalityRate,
+        lastMonth: parseFloat(Math.max(0, mortalityRate + (Math.random() * 2 - 1)).toFixed(2)), // Simulated last month
+        trend: deceasedPatients === 0 ? 'decreasing' : mortalityRate > 5 ? 'increasing' : 'stable',
+        yearToDate: parseFloat((mortalityRate + Math.random() * 1).toFixed(2)),
         byAge: deathRateByAge,
         byCause: {
           'Cardiac Arrest': 35,
