@@ -89,7 +89,11 @@ const equipmentSchema = new mongoose.Schema({
   
   // Timestamps
   createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now }
+  updatedAt: { type: Date, default: Date.now },
+  
+  // Add these fields:
+  quantity: { type: Number, default: 1 },
+  minQuantity: { type: Number, default: 1 }
 })
 
 // Update timestamp on save
