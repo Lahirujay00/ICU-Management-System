@@ -1944,7 +1944,9 @@ const CalendarScheduleModal = ({ staff, selectedStaffId, onClose, onUpdateSchedu
         padding: 0
       }}
     >
-      <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] ">
+        <div className="overflow-y-auto max-h-[80vh]">
+
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-bold text-gray-900">
             Schedule Calendar - {selectedStaff?.name || selectedStaff?.firstName + ' ' + selectedStaff?.lastName}
@@ -2194,6 +2196,7 @@ const CalendarScheduleModal = ({ staff, selectedStaffId, onClose, onUpdateSchedu
           >
             Close Calendar
           </button>
+        </div>
         </div>
       </div>
     </div>

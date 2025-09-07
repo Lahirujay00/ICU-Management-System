@@ -217,7 +217,8 @@ const ServiceModal = ({ isOpen, onClose, equipment, onSave }) => {
   if (!isOpen || !equipment) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"
+    style={{ width: '100vw', height: '100vh', margin: 0, padding: 0 }}>
       <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-semibold">Schedule Service - {equipment.name}</h3>
@@ -312,7 +313,8 @@ const ReportModal = ({ isOpen, onClose, equipmentData }) => {
   });
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"
+    style={{ width: '100vw', height: '100vh', margin: 0, padding: 0 }}>
       <div className="bg-white rounded-lg p-6 w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
           <h3 className="text-xl font-semibold">Equipment Inventory Report</h3>
