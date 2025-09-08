@@ -8,6 +8,7 @@ import mongoose from 'mongoose';
 import 'dotenv/config';
 
 import connectDB from './config/database.js';
+import { ensureDbConnection, checkDbConnection } from './middleware/database.js';
 import authRoutes from './routes/auth.js';
 import patientRoutes from './routes/patients.js';
 import staffRoutes from './routes/staff.js';
@@ -20,8 +21,8 @@ import analyticsRoutes from './routes/analytics.js';
 const app = express();
 const PORT = process.env.BACKEND_PORT || process.env.PORT || 5000;
 
-// Connect to MongoDB
-connectDB();
+// Initialize database connection (don't wait for it to avoid blocking)
+connectDB().catch(console.error);
 
 // Security middleware
 app.use(helmet());
@@ -72,23 +73,22 @@ app.get('/', (req, res) => {
   });
 });
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  const dbStatus = mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected';
+// Health check endpoint (no database required)
+app.get('/health', checkDbConnection, (req, res) => {
   res.status(200).json({ 
     status: 'OK', 
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV,
     database: {
-      status: dbStatus,
+      status: req.dbStatus,
+      readyState: req.dbReadyState,
       name: mongoose.connection.name || 'Not connected'
     }
   });
 });
 
-// Debug endpoint for environment variables (temporary)
-app.get('/debug', (req, res) => {
-  const dbStatus = mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected';
+// Debug endpoint for environment variables (no database required)
+app.get('/debug', checkDbConnection, (req, res) => {
   const readyStates = {
     0: 'disconnected',
     1: 'connected',
@@ -99,9 +99,9 @@ app.get('/debug', (req, res) => {
   res.status(200).json({
     environment: process.env.NODE_ENV,
     database: {
-      status: dbStatus,
-      readyState: mongoose.connection.readyState,
-      readyStateDesc: readyStates[mongoose.connection.readyState],
+      status: req.dbStatus,
+      readyState: req.dbReadyState,
+      readyStateDesc: readyStates[req.dbReadyState],
       mongoURI: process.env.MONGODB_URI ? 'Set' : 'Not Set',
       mongoURIStart: process.env.MONGODB_URI ? process.env.MONGODB_URI.substring(0, 30) + '...' : 'N/A',
       connectionName: mongoose.connection.name || 'No connection',
@@ -117,16 +117,68 @@ app.get('/debug', (req, res) => {
   });
 });
 
+// Initialization endpoint to pre-warm database connection
+app.get('/init', async (req, res) => {
+  try {
+    console.log('🔄 Initializing database connection...');
+    await connectDB();
+    
+    res.json({
+      message: 'Database connection initialized successfully',
+      status: 'success',
+      timestamp: new Date().toISOString(),
+      database: {
+        status: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected',
+        host: mongoose.connection.host,
+        name: mongoose.connection.name
+      }
+    });
+  } catch (error) {
+    console.error('❌ Database initialization failed:', error);
+    res.status(500).json({
+      message: 'Database initialization failed',
+      error: error.message,
+      status: 'error',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // Force reconnect endpoint for testing
 app.get('/reconnect', async (req, res) => {
   try {
     console.log('🔄 Force reconnecting to MongoDB...');
-    await mongoose.disconnect();
+    
+    // Clear the connection cache
+    if (global.mongoose) {
+      global.mongoose.conn = null;
+      global.mongoose.promise = null;
+    }
+    
+    // Disconnect if connected
+    if (mongoose.connection.readyState !== 0) {
+      await mongoose.disconnect();
+    }
+    
+    // Reconnect
     await connectDB();
-    res.json({ message: 'Reconnection attempted', status: 'success' });
+    
+    res.json({ 
+      message: 'Reconnection successful', 
+      status: 'success',
+      database: {
+        status: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected',
+        host: mongoose.connection.host,
+        name: mongoose.connection.name
+      }
+    });
   } catch (error) {
     console.error('❌ Reconnection failed:', error);
-    res.status(500).json({ message: 'Reconnection failed', error: error.message });
+    res.status(500).json({ 
+      message: 'Reconnection failed', 
+      error: error.message,
+      status: 'error'
+    });
   }
 });
 
@@ -147,14 +199,15 @@ app.get('/api', (req, res) => {
   });
 });
 
-app.use('/api/auth', authRoutes);
-app.use('/api/patients', patientRoutes);
-app.use('/api/staff', staffRoutes);
-app.use('/api/equipment', equipmentRoutes);
-app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/discharge-history', dischargeHistoryRoutes);
-app.use('/api/beds', bedRoutes);
-app.use('/api/analytics', analyticsRoutes);
+// API routes - All require database connection
+app.use('/api/auth', ensureDbConnection, authRoutes);
+app.use('/api/patients', ensureDbConnection, patientRoutes);
+app.use('/api/staff', ensureDbConnection, staffRoutes);
+app.use('/api/equipment', ensureDbConnection, equipmentRoutes);
+app.use('/api/dashboard', ensureDbConnection, dashboardRoutes);
+app.use('/api/discharge-history', ensureDbConnection, dischargeHistoryRoutes);
+app.use('/api/beds', ensureDbConnection, bedRoutes);
+app.use('/api/analytics', ensureDbConnection, analyticsRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

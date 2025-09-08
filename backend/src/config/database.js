@@ -4,8 +4,27 @@ import dns from 'dns';
 // Set DNS servers for better resolution
 dns.setServers(['8.8.8.8', '8.8.4.4', '1.1.1.1', '1.0.0.1']);
 
+// Connection cache for serverless
+let cached = global.mongoose;
+
+if (!cached) {
+  cached = global.mongoose = { conn: null, promise: null };
+}
+
 const connectDB = async () => {
   try {
+    // Return cached connection if available
+    if (cached.conn) {
+      console.log('✅ Using cached MongoDB connection');
+      return cached.conn;
+    }
+
+    // Return existing promise if connection is in progress
+    if (cached.promise) {
+      console.log('🔄 MongoDB connection in progress, waiting...');
+      return cached.promise;
+    }
+
     const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/icu_management';
     
     console.log('🔄 Attempting to connect to MongoDB...');
@@ -25,44 +44,61 @@ const connectDB = async () => {
         }
       }
     }
-    
-    const conn = await mongoose.connect(mongoURI, {
-      serverSelectionTimeoutMS: 10000, // Reduced for serverless
-      connectTimeoutMS: 10000,
-      socketTimeoutMS: 10000,
-      maxPoolSize: 5, // Reduced for serverless
+
+    // Optimized settings for serverless
+    const connectionOptions = {
+      serverSelectionTimeoutMS: 15000, // Increased for serverless cold starts
+      connectTimeoutMS: 15000,
+      socketTimeoutMS: 45000,
+      maxPoolSize: 1, // Single connection for serverless
       retryWrites: true,
-      w: 'majority'
-    });
+      w: 'majority',
+      bufferCommands: false, // Disable mongoose buffering
+      bufferMaxEntries: 0, // Disable mongoose buffering
+    };
+
+    // Create connection promise
+    cached.promise = mongoose.connect(mongoURI, connectionOptions);
+
+    // Wait for connection to complete
+    const conn = await cached.promise;
+    cached.conn = conn;
 
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
     console.log(`📊 Database: ${conn.connection.name}`);
     
-    // Handle connection events
-    mongoose.connection.on('error', (err) => {
-      console.error('❌ MongoDB connection error:', err);
-    });
+    // Handle connection events (only set once)
+    if (!mongoose.connection._eventsSetup) {
+      mongoose.connection.on('error', (err) => {
+        console.error('❌ MongoDB connection error:', err);
+        // Clear cache on error
+        cached.conn = null;
+        cached.promise = null;
+      });
 
-    mongoose.connection.on('disconnected', () => {
-      console.log('⚠️ MongoDB disconnected - attempting to reconnect...');
-      setTimeout(() => {
-        connectDB();
-      }, 5000);
-    });
+      mongoose.connection.on('disconnected', () => {
+        console.log('⚠️ MongoDB disconnected');
+        // Clear cache on disconnect
+        cached.conn = null;
+        cached.promise = null;
+      });
 
-    mongoose.connection.on('reconnected', () => {
-      console.log('✅ MongoDB reconnected');
-    });
+      mongoose.connection.on('reconnected', () => {
+        console.log('✅ MongoDB reconnected');
+      });
 
-    // Graceful shutdown
-    process.on('SIGINT', async () => {
-      await mongoose.connection.close();
-      console.log('🔄 MongoDB connection closed through app termination');
-      process.exit(0);
-    });
+      // Mark events as set up
+      mongoose.connection._eventsSetup = true;
+    }
+
+    return conn;
 
   } catch (error) {
     console.error('❌ Error connecting to MongoDB:', error.message);
+    
+    // Clear cache on error
+    cached.conn = null;
+    cached.promise = null;
     
     // If Atlas fails, suggest alternatives
     if (error.message.includes('ENOTFOUND') || error.message.includes('querySrv')) {
@@ -80,9 +116,7 @@ const connectDB = async () => {
       console.log('   5. Use MongoDB Compass to test connection');
     }
     
-    console.log('⚠️ Server will continue running without database connection');
-    console.log('🔧 Fix the database connection to save patient data');
-    // Don't exit, let the server run for testing
+    throw error; // Re-throw error for proper handling
   }
 };
 
